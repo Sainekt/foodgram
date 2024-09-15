@@ -2,12 +2,9 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 
-User = get_user_model()
+from common.constants import MAX_32, MAX_128, MAX_64, MAX_256
 
-MAX_32 = 32
-MAX_256 = 256
-MAX_64 = 64
-MAX_128 = 128
+User = get_user_model()
 
 
 class Tag(models.Model):
