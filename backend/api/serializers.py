@@ -3,12 +3,13 @@ from django.contrib.auth import get_user_model
 from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer
 
+from users.models import Subscriber
+
 User = get_user_model()
 
 
-class UserUpdateSerializer(UserSerializer):
-    ...
-    avatar = Base64ImageField(required=False, allow_null=True)
+class UserAvatarUpdateSerializer(serializers.ModelSerializer):
+    avatar = Base64ImageField()
 
     class Meta:
         model = User
@@ -16,9 +17,26 @@ class UserUpdateSerializer(UserSerializer):
 
 
 class UserSerializer(UserSerializer):
-    avatar = Base64ImageField(required=False, allow_null=True)
-    # is_subscribed = serializers.SerializerMethodField()
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'avatar')
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'avatar',
+            'is_subscribed',
+        )
+
+    def get_is_subscribed(self, obj):
+        user = self.context['request'].user
+        if not user.is_authenticated:
+            return False
+        try:
+            Subscriber.objects.get(user=user, subscriber=obj)
+        except Subscriber.DoesNotExist:
+            return False
+        return True

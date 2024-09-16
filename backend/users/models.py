@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
 
 
@@ -6,6 +7,7 @@ from common.constants import MAX_254, MAX_150
 
 
 class User(AbstractUser):
+    username_validator = UnicodeUsernameValidator()
 
     email = models.EmailField(
         verbose_name='Адрес электронной почты.',
@@ -18,9 +20,12 @@ class User(AbstractUser):
     username = models.CharField(
         verbose_name='Имя пользователя',
         max_length=MAX_150,
+        unique=True,
         error_messages={
             'unique': 'Пользователь с таким именем уже существует.'
-        }
+        },
+        validators=[username_validator]
+
     )
     first_name = models.CharField(
         verbose_name='Имя',
@@ -32,7 +37,7 @@ class User(AbstractUser):
     )
     avatar = models.ImageField(
         verbose_name='Фото',
-        upload_to='users/avatar/',
+        upload_to='users/',
         blank=True,
         null=True,
     )
