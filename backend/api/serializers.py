@@ -4,6 +4,7 @@ from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer
 
 from users.models import Subscriber
+from recipes.models import Tag, Ingredient
 
 User = get_user_model()
 
@@ -40,3 +41,17 @@ class UserSerializer(UserSerializer):
         except Subscriber.DoesNotExist:
             return False
         return True
+
+
+class TagsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tag
+        fields = ('id', 'name', 'slug')
+
+
+class IngredientsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')

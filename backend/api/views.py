@@ -1,12 +1,16 @@
 from django.contrib.auth import get_user_model
 # from django.shortcuts import get_object_or_404
-# from django_filters.rest_framework import DjangoFilterBackend
 # from rest_condition import Or
-from rest_framework import filters, status, viewsets, generics
+from rest_framework import filters, status, viewsets, generics, mixins
 # from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .serializers import UserSerializer, UserAvatarUpdateSerializer
+from .serializers import (
+    UserSerializer,
+    UserAvatarUpdateSerializer,
+    TagsSerializer,
+    IngredientsSerializer
+)
 from djoser.views import UserViewSet
 from django.urls import path
 from rest_framework.decorators import action
@@ -14,6 +18,8 @@ from django.core.files.base import ContentFile
 import base64
 from django.conf import settings
 import os
+from recipes.models import Tag, Ingredient
+from .filters import CustomSearchFilter
 
 User = get_user_model()
 
@@ -43,3 +49,21 @@ class UserViewSet(UserViewSet):
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
+
+
+class TagsView(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    queryset = Tag.objects.all()
+    serializer_class = TagsSerializer
+    pagination_class = None
+
+
+class IngredientsView(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientsSerializer
+    pagination_class = None
+    filter_backends = [CustomSearchFilter]
+    search_fields = ['^name',]
