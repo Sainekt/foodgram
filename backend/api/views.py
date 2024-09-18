@@ -11,7 +11,8 @@ from .serializers import (
     UserAvatarUpdateSerializer,
     TagsSerializer,
     IngredientsSerializer,
-    RecipesSerializer
+    RecipesReadSerializer,
+    RecipesWriteSerializer,
 )
 from djoser.views import UserViewSet
 from django.urls import path
@@ -73,6 +74,14 @@ class IngredientsView(
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipesSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['author', 'tags']
+
+    def perform_create(self, serializer):
+        serializer.is_valid(raise_exception=True)
+        serializer.save(author=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method in SAFE_METHODS:
+            return RecipesReadSerializer
+        return RecipesWriteSerializer
