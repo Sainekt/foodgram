@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 # from django.shortcuts import get_object_or_404
 # from rest_condition import Or
 from rest_framework import filters, status, viewsets, generics, mixins
+from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -9,7 +10,8 @@ from .serializers import (
     UserSerializer,
     UserAvatarUpdateSerializer,
     TagsSerializer,
-    IngredientsSerializer
+    IngredientsSerializer,
+    RecipesSerializer
 )
 from djoser.views import UserViewSet
 from django.urls import path
@@ -18,7 +20,7 @@ from django.core.files.base import ContentFile
 import base64
 from django.conf import settings
 import os
-from recipes.models import Tag, Ingredient
+from recipes.models import Tag, Ingredient, Recipe
 from .filters import CustomSearchFilter
 
 User = get_user_model()
@@ -67,3 +69,10 @@ class IngredientsView(
     pagination_class = None
     filter_backends = [CustomSearchFilter]
     search_fields = ['^name',]
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
+    serializer_class = RecipesSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['author', 'tags']

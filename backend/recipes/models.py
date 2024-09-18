@@ -34,6 +34,10 @@ class IngredientsRecipes(models.Model):
         on_delete=models.CASCADE,
         related_name='recipe_ingredients'
     )
+    amount = models.IntegerField(
+        verbose_name='Количество игридиента',
+        validators=[MinValueValidator(1)],
+    )
 
 
 class Recipe(models.Model):
@@ -49,7 +53,7 @@ class Recipe(models.Model):
     )
     image = models.ImageField(
         verbose_name='Изображение',
-        upload_to='recipe/image/',
+        upload_to='recipes/images/',
     )
     name = models.CharField(
         verbose_name='Название',
@@ -65,6 +69,10 @@ class Recipe(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Автор рецепта',
         related_name='recipes'
+    )
+    short_link = models.CharField(
+        verbose_name='Короткая ссылка',
+        max_length=10,
     )
 
 
