@@ -4,7 +4,7 @@ from functools import reduce
 import operator
 
 
-class CustomSearchFilter(filters.SearchFilter):
+class IngredientSearchFilter(filters.SearchFilter):
     search_param = 'name'
 
     def filter_queryset(self, request, queryset, view):
@@ -34,4 +34,17 @@ class CustomSearchFilter(filters.SearchFilter):
         if self.must_call_distinct(queryset, search_fields):
             queryset = queryset.filter(pk=models.OuterRef('pk'))
             queryset = base.filter(models.Exists(queryset))
+        return queryset
+
+
+class RecipeFilter(filters.BaseFilterBackend):
+
+    def filter_queryset(self, request, queryset, view):
+        tags = request.query_params.getlist('tags')
+        author = request.query_params.getlist('author')
+        if tags:
+            queryset = queryset.filter(tags__slug__in=tags).distinct()
+        if author:
+            queryset = queryset.filter(author__id__in=author).distinct()
+
         return queryset

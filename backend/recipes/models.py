@@ -11,6 +11,9 @@ class Tag(models.Model):
     name = models.CharField(max_length=MAX_32, verbose_name='Название')
     slug = models.SlugField(max_length=MAX_32, verbose_name='Слаг')
 
+    def __str__(self):
+        return self.name
+
 
 class Ingredient(models.Model):
     name = models.CharField(
@@ -21,6 +24,9 @@ class Ingredient(models.Model):
         verbose_name='Единица измерения',
         max_length=MAX_64
     )
+
+    def __str__(self):
+        return f'{self.name}, {self.measurement_unit}'
 
 
 class IngredientsRecipes(models.Model):
@@ -33,6 +39,10 @@ class IngredientsRecipes(models.Model):
         'Recipe',
         on_delete=models.CASCADE,
         related_name='recipe_ingredients'
+    )
+    amount = models.IntegerField(
+        verbose_name='Количество игридиента',
+        validators=[MinValueValidator(1)],
     )
 
 
@@ -49,7 +59,7 @@ class Recipe(models.Model):
     )
     image = models.ImageField(
         verbose_name='Изображение',
-        upload_to='recipe/image/',
+        upload_to='recipes/images/',
     )
     name = models.CharField(
         verbose_name='Название',
@@ -66,6 +76,13 @@ class Recipe(models.Model):
         verbose_name='Автор рецепта',
         related_name='recipes'
     )
+    short_link = models.CharField(
+        verbose_name='Короткая ссылка',
+        max_length=10,
+    )
+
+    def __str__(self):
+        return self.name
 
 
 class TagsRecipes(models.Model):

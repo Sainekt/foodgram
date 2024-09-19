@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
-# from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404
 # from rest_condition import Or
 from rest_framework import filters, status, viewsets, generics, mixins
+from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -9,7 +10,10 @@ from .serializers import (
     UserSerializer,
     UserAvatarUpdateSerializer,
     TagsSerializer,
-    IngredientsSerializer
+    IngredientsSerializer,
+    RecipesReadSerializer,
+    RecipesWriteSerializer,
+    ShortLinkSerializer
 )
 from djoser.views import UserViewSet
 from django.urls import path
@@ -18,8 +22,9 @@ from django.core.files.base import ContentFile
 import base64
 from django.conf import settings
 import os
-from recipes.models import Tag, Ingredient
-from .filters import CustomSearchFilter
+from recipes.models import Tag, Ingredient, Recipe
+from .filters import IngredientSearchFilter, RecipeFilter
+from .permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
 
@@ -65,5 +70,30 @@ class IngredientsView(
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
-    filter_backends = [CustomSearchFilter]
+    filter_backends = [IngredientSearchFilter]
     search_fields = ['^name',]
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
+    filter_backends = [RecipeFilter]
+    filterset_fields = ['author', 'tags']
+    permission_classes = [IsAuthorOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.is_valid(raise_exception=True)
+        serializer.save(author=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method in SAFE_METHODS:
+            return RecipesReadSerializer
+        return RecipesWriteSerializer
+
+    @action(['get'], detail=True, url_path='get-link',)
+    def get_link(self, request, *args, **kwargs):
+        recipe = get_object_or_404(Recipe, pk=kwargs['pk'])
+        short_link = (
+            f'{request.scheme}://' + request.META['HTTP_HOST']
+            + f'/s/{recipe.short_link}'
+        )
+        return Response({'short-link': short_link}, status=status.HTTP_200_OK)

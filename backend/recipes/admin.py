@@ -9,7 +9,6 @@ from .models import (
     TagsRecipes,
     FavoriteRecipes,
     ShoppingCart,
-    FavoriteRecipes
 )
 
 admin.site.empty_value_display = 'Не задано'
@@ -45,8 +44,9 @@ class IngredientsRecipes(admin.ModelAdmin):
 class Recipe(admin.ModelAdmin):
     list_display = (
         'id', 'image', 'name', 'text',
-        'author',
+        'author', 'short_link'
     )
+
     search_fields = ('text', 'author__username', 'name__name')
     list_editable = ('text', 'author', 'name')
 
