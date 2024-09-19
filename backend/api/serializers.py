@@ -33,11 +33,13 @@ class UserSerializer(UserSerializer):
         )
 
     def get_is_subscribed(self, obj):
-        user = self.context['request'].user
-        if not user.is_authenticated:
+        request = self.context.get('request')
+        if not request:
+            return False
+        if not request.user.is_authenticated:
             return False
         try:
-            Subscriber.objects.get(user=user, subscriber=obj)
+            Subscriber.objects.get(user=request.user, subscriber=obj)
         except Subscriber.DoesNotExist:
             return False
         return True
@@ -84,6 +86,7 @@ class RecipesReadSerializer(serializers.ModelSerializer):
     is_favorited = serializers.SerializerMethodField()
     author = UserSerializer(many=False, read_only=True)
     ingredients = serializers.SerializerMethodField()
+    tags = TagsSerializer(many=True)
 
     class Meta:
         model = Recipe
@@ -127,8 +130,14 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         recipe = Recipe.objects.create(**validated_data)
-        for ingredient, amount in ingredients:
+        recipe.tags.set(tags)
+        for data in ingredients:
+            ingredient = Ingredient.objects.get(pk=data['id'])
             IngredientsRecipes.objects.create(
-                ingredient=ingredient, recipe=recipe
+                ingredient=ingredient, recipe=recipe, amount=data['amount']
             )
         return recipe
+
+    def to_representation(self, instance):
+        representation = RecipesReadSerializer(instance)
+        return representation.data

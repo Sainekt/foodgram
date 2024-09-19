@@ -22,7 +22,8 @@ import base64
 from django.conf import settings
 import os
 from recipes.models import Tag, Ingredient, Recipe
-from .filters import CustomSearchFilter
+from .filters import IngredientSearchFilter, RecipeFilter
+from .permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
 
@@ -68,14 +69,15 @@ class IngredientsView(
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
-    filter_backends = [CustomSearchFilter]
+    filter_backends = [IngredientSearchFilter]
     search_fields = ['^name',]
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [RecipeFilter]
     filterset_fields = ['author', 'tags']
+    permission_classes = [IsAuthorOrReadOnly]
 
     def perform_create(self, serializer):
         serializer.is_valid(raise_exception=True)
