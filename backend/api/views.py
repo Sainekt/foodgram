@@ -92,6 +92,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(['get'], detail=True, url_path='get-link',)
     def get_link(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, pk=kwargs['pk'])
-        short_link = f'{request.scheme}://{
-            request.META['HTTP_HOST']}/s/{recipe.short_link}'
+        short_link = (
+            f'{request.scheme}://' + request.META['HTTP_HOST']
+            + f'/s/{recipe.short_link}'
+        )
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)

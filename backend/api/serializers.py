@@ -116,9 +116,10 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
     image = Base64ImageField()
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
-        many=True
+        many=True,
+        required=True
     )
-    ingredients = IngredientsInRecipeCreateSerializer(many=True)
+    ingredients = IngredientsInRecipeCreateSerializer(many=True, required=True)
 
     class Meta:
         model = Recipe
@@ -126,6 +127,45 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             'id', 'tags', 'ingredients',
             'name', 'image', 'text', 'cooking_time'
         )
+
+    def validate_ingredients(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'Добавьте хотя бы 1 ингридиент.'
+            )
+        check_unique = []
+        for data in value:
+            if not Ingredient.objects.filter(pk=data['id']).exists():
+                raise serializers.ValidationError(
+                    'Какого-то из ингридиентов не существует.'
+                )
+            if data['id'] in check_unique:
+                raise serializers.ValidationError(
+                    'Дублирование ингридиента.'
+                )
+            check_unique.append(data['id'])
+        return value
+
+    def validate_tags(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'Добавьте хотя бы 1 тег.'
+            )
+        check_unique = []
+        for data in value:
+            if data in check_unique:
+                raise serializers.ValidationError(
+                    'Дулбирование тега.'
+                )
+            check_unique.append(data)
+        return value
+
+    def validate_image(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'Обязательное поле.'
+            )
+        return value
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
@@ -140,11 +180,12 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             )
         return recipe
 
-    def to_representation(self, instance):
-        representation = RecipesReadSerializer(instance)
-        return representation.data
-
     def update(self, instance, validated_data):
+        if (not validated_data.get('tags')
+                or not validated_data.get('ingredients')):
+            raise serializers.ValidationError(
+                {'detail': 'tags или ingredients не заполнены.'}
+            )
         instance.name = validated_data.get('name', instance.name)
         instance.image = validated_data.get('image', instance.image)
         instance.text = validated_data.get('text', instance.text)
@@ -165,6 +206,10 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
                     amount=data['amount']
                 )
             return instance
+
+    def to_representation(self, instance):
+        representation = RecipesReadSerializer(instance)
+        return representation.data
 
 
 class ShortLinkSerializer(serializers.ModelSerializer):
