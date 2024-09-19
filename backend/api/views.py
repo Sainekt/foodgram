@@ -97,3 +97,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
             + f'/s/{recipe.short_link}'
         )
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
+
+    @action(
+        ['get'], detail=False, url_path='download_shopping_cart',
+        permission_classes=[IsAuthenticated]
+    )
+    def download_shopping_cart(self, request, *args, **kwargs):
+        # Создаем текст файла
+        text = "Это текст файла.\n"
+        # Создаем ответ
+        response = Response(text, content_type='text/plain')
+        # Установка заголовка Content-Disposition для загрузки файла
+        response.headers["Content-Disposition"] = "attachment; filename=my_file.txt"
+        return response
+
+    @action(
+        ['post'], detail=True, url_path='shopping_cart',
+        permission_classes=[IsAuthenticated]
+    )
+    def add_shoping_cart(self, request, *args, **kwargs):
+        print(kwargs)
