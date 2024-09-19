@@ -5,6 +5,7 @@ from djoser.serializers import UserSerializer
 
 from users.models import Subscriber
 from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes
+from utils.short_link_gen import get_link
 
 User = get_user_model()
 
@@ -129,6 +130,7 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
+        validated_data['short_link'] = get_link()
         recipe = Recipe.objects.create(**validated_data)
         recipe.tags.set(tags)
         for data in ingredients:
@@ -141,3 +143,32 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = RecipesReadSerializer(instance)
         return representation.data
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.image = validated_data.get('image', instance.image)
+        instance.text = validated_data.get('text', instance.text)
+        instance.cooking_time = validated_data.get(
+            'cooking_time', instance.cooking_time
+        )
+        instance.save()
+        tags = validated_data.get('tags', instance.tags)
+        instance.tags.set(tags)
+        ingredients = validated_data.pop('ingredients')
+        if ingredients:
+            IngredientsRecipes.objects.filter(recipe=instance).delete()
+            for data in ingredients:
+                ingredient = Ingredient.objects.get(pk=data['id'])
+                IngredientsRecipes.objects.create(
+                    ingredient=ingredient,
+                    recipe=instance,
+                    amount=data['amount']
+                )
+            return instance
+
+
+class ShortLinkSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ['short_link']

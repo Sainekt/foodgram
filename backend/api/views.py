@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-# from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404
 # from rest_condition import Or
 from rest_framework import filters, status, viewsets, generics, mixins
 from django_filters.rest_framework import DjangoFilterBackend
@@ -13,6 +13,7 @@ from .serializers import (
     IngredientsSerializer,
     RecipesReadSerializer,
     RecipesWriteSerializer,
+    ShortLinkSerializer
 )
 from djoser.views import UserViewSet
 from django.urls import path
@@ -87,3 +88,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if self.request.method in SAFE_METHODS:
             return RecipesReadSerializer
         return RecipesWriteSerializer
+
+    @action(['get'], detail=True, url_path='get-link',)
+    def get_link(self, request, *args, **kwargs):
+        recipe = get_object_or_404(Recipe, pk=kwargs['pk'])
+        short_link = f'{request.scheme}://{
+            request.META['HTTP_HOST']}/s/{recipe.short_link}'
+        return Response({'short-link': short_link}, status=status.HTTP_200_OK)
