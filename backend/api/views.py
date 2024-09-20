@@ -12,7 +12,7 @@ from .serializers import (
     IngredientsSerializer,
     RecipesReadSerializer,
     RecipesWriteSerializer,
-    ShopingCartSerializer,
+    ShortRecipeSerializer,
     ShortLinkSerializer,
     UserSerializer,
     SubscribeSerializer
@@ -61,47 +61,48 @@ class UserViewSet(UserViewSet):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
 
-    # @action(
-    #     ['get'], detail=False,
-    #     permission_classes=[IsAuthenticated], url_path='subscriptions',)
-    # def subscriptions(self, request, *args, **kwargs):
-    #     all_sub = request.user.users_ubscribers.all()
-    #     if not all_sub:
-    #         return Response({}, status=status.HTTP_200_OK)
-    #     data = [
-    #         SubscribeSerializer(
-    #             User.objects.get(pk=subscriber.subscriber_id)
-    #         ).data
-    #         for subscriber in all_sub]
-    #     page = self.paginate_queryset(data)
-    #     if page is not None:
-    #         serializer = SubscribeSerializer(page, many=True)
-    #         return self.get_paginated_response(serializer.data)
-    #     serializer = self.get_serializer(data, many=True)
-    #     return Response({'sub': serializer.data}, status=status.HTTP_200_OK)
+    @action(
+        ['get'], detail=False,
+        permission_classes=[IsAuthenticated], url_path='subscriptions',)
+    def subscriptions(self, request, *args, **kwargs):
+        all_sub = request.user.users_ubscribers.all()
+        if not all_sub:
+            return Response({}, status=status.HTTP_200_OK)
+        data = [
+            SubscribeSerializer(
+                User.objects.get(pk=subscriber.subscriber_id)
+            ).data
+            for subscriber in all_sub]
+        page = self.paginate_queryset(data)
+        if page is not None:
+            serializer = SubscribeSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = SubscribeSerializer(data, many=True)
+        return Response({'sub': serializer.data}, status=status.HTTP_200_OK)
 
+    @action(
+        ['post'], detail=True, url_path='subscribe',
+        permission_classes=[IsAuthenticated]
+    )
+    def subscribe(self, request, *args, **kwargs):
+        subscribe_on = get_object_or_404(
+            User, pk=kwargs['id']
+        )
+        obj, result = Subscriber.objects.get_or_create(
+            user=request.user, subscriber=subscribe_on)
+        if not result:
+            return Response(
+                {'error': 'You are already subscribed'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        data = SubscribeSerializer(instance=subscribe_on).data
+        return Response(data, status=status.HTTP_201_CREATED)
 
-    # @action(
-    #     ['post'], detail=True, url_path='subscribe',
-    #     permission_classes=[IsAuthenticated]
-    # )
-    # def subscribe(self, request, *args, **kwargs):
-    #     subscribe_on = get_object_or_404(
-    #         User, pk=kwargs['id']
-    #     )
-    #     Subscriber.objects.create(user=request.user, subscriber=subscribe_on)
-    #     return Response(status=status.HTTP_201_CREATED)
-
-class SubscribeView(
-    mixins.ListModelMixin,
-    viewsets.GenericViewSet
-):
-    queryset = Subscriber.objects.all()
-    serializer_class = SubscribeSerializer
-    def get_queryset(self):
-        all_sub = self.request.user.users_ubscribers.all()
-        data = [User.objects.get(pk=subscriber.subscriber_id) for subscriber in all_sub]
-        return data
+    @subscribe.mapping.delete
+    def del_subscribe(self, request, *args, **kwargs):
+        get_object_or_404(
+            Subscriber, user=request.user, subscriber=kwargs['id']).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagsView(
@@ -172,7 +173,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 {'detail': 'Рецепт уже добавлен.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = ShopingCartSerializer(instance=recipe)
+        serializer = ShortRecipeSerializer(instance=recipe)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED
         )

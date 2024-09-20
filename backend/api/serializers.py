@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer
+from django.conf import settings
 
 from users.models import Subscriber
 from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes
@@ -69,7 +70,7 @@ class SubscribeSerializer(UserSerializer):
 
     def get_recipes(self, obj):
         queryset = Recipe.objects.filter(author=obj)
-        serializer = ShopingCartSerializer(instance=queryset, many=True)
+        serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
 
 
@@ -246,7 +247,14 @@ class ShortLinkSerializer(serializers.ModelSerializer):
         fields = ['short_link']
 
 
-class ShopingCartSerializer(serializers.ModelSerializer):
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = ['id', 'name', 'image', 'cooking_time']
+
+    def get_image(self, obj):
+        if obj.image:
+            return f'{settings.UBSOLUTE_DOMAIN}/{str(obj.image)}'
+        return None
