@@ -13,7 +13,8 @@ from .serializers import (
     IngredientsSerializer,
     RecipesReadSerializer,
     RecipesWriteSerializer,
-    ShortLinkSerializer
+    ShortLinkSerializer,
+    ShopingCartSerializer
 )
 from djoser.views import UserViewSet
 from django.urls import path
@@ -22,7 +23,7 @@ from django.core.files.base import ContentFile
 import base64
 from django.conf import settings
 import os
-from recipes.models import Tag, Ingredient, Recipe
+from recipes.models import Tag, Ingredient, Recipe, ShoppingCart, FavoriteRecipes
 from .filters import IngredientSearchFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
 
@@ -91,7 +92,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(['get'], detail=True, url_path='get-link',)
     def get_link(self, request, *args, **kwargs):
-        recipe = get_object_or_404(Recipe, pk=kwargs['pk'])
+        recipe = self.get_recipe(kwargs)
         short_link = (
             f'{request.scheme}://' + request.META['HTTP_HOST']
             + f'/s/{recipe.short_link}'
@@ -111,9 +112,58 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response.headers["Content-Disposition"] = "attachment; filename=my_file.txt"
         return response
 
+    def get_recipe(self, kwargs):
+        return get_object_or_404(Recipe, pk=kwargs['pk'])
+
+    def add_favorite_or_shoping_cart(self, request, model, *args, **kwargs):
+        recipe = self.get_recipe(kwargs)
+        shoping_add, created = model.objects.get_or_create(
+            recipe=recipe, user=request.user
+        )
+        if not created:
+            return Response(
+                {'detail': 'Рецепт уже добавлен.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = ShopingCartSerializer(instance=recipe)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED
+        )
+
+    def del_favorite_or_shoping_cart(self, request, model, *args, **kwargs):
+        recipe = self.get_recipe(kwargs)
+        shoping_cart = get_object_or_404(
+            model, user=request.user, recipe=recipe
+        )
+        shoping_cart.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(
         ['post'], detail=True, url_path='shopping_cart',
         permission_classes=[IsAuthenticated]
     )
     def add_shoping_cart(self, request, *args, **kwargs):
-        print(kwargs)
+        return self.add_favorite_or_shoping_cart(
+            request, ShoppingCart, *args, **kwargs
+        )
+
+    @add_shoping_cart.mapping.delete
+    def del_shoping_cart(self, request, *args, **kwargs):
+        return self.del_favorite_or_shoping_cart(
+            request, ShoppingCart, *args, **kwargs
+        )
+
+    @action(
+        ['post'], detail=True, url_path='favorite',
+        permission_classes=[IsAuthenticated]
+    )
+    def add_favorite(self, request, *args, **kwargs):
+        return self.add_favorite_or_shoping_cart(
+            request, FavoriteRecipes, *args, **kwargs
+        )
+
+    @add_favorite.mapping.delete
+    def del_favorite(self, request, *args, **kwargs):
+        return self.del_favorite_or_shoping_cart(
+            request, FavoriteRecipes, *args, **kwargs
+        )

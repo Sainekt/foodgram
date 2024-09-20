@@ -217,3 +217,9 @@ class ShortLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ['short_link']
+
+
+class ShopingCartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = ['id', 'name', 'image', 'cooking_time']
