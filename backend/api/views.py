@@ -7,23 +7,26 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
-    UserSerializer,
     UserAvatarUpdateSerializer,
     TagsSerializer,
     IngredientsSerializer,
     RecipesReadSerializer,
     RecipesWriteSerializer,
+    ShopingCartSerializer,
     ShortLinkSerializer,
-    ShopingCartSerializer
+    UserSerializer,
+    SubscribeSerializer
 )
 from djoser.views import UserViewSet
-from django.urls import path
 from rest_framework.decorators import action
-from django.core.files.base import ContentFile
-import base64
-from django.conf import settings
-import os
-from recipes.models import Tag, Ingredient, Recipe, ShoppingCart, FavoriteRecipes
+from recipes.models import (
+    Tag,
+    Ingredient,
+    Recipe,
+    ShoppingCart,
+    FavoriteRecipes,
+)
+from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
 
@@ -33,14 +36,10 @@ User = get_user_model()
 class UserViewSet(UserViewSet):
 
     @action(
-        ['put', 'delete'], detail=False, url_path='me/avatar',
+        ['put'], detail=False, url_path='me/avatar',
         permission_classes=[IsAuthenticated]
     )
     def change_avatar(self, request, *args, **kwargs):
-        if request.method == 'DELETE':
-            self.request.user.avatar = None
-            self.request.user.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         avatar_data = serializer.validated_data.get('avatar')
@@ -51,10 +50,58 @@ class UserViewSet(UserViewSet):
         )
         return Response({'avatar': str(image_url)}, status=status.HTTP_200_OK)
 
+    @change_avatar.mapping.delete
+    def delete_avatar(self, request, *args, **kwargs):
+        self.request.user.avatar = None
+        self.request.user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(["get"], detail=False, permission_classes=[IsAuthenticated])
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
+
+    # @action(
+    #     ['get'], detail=False,
+    #     permission_classes=[IsAuthenticated], url_path='subscriptions',)
+    # def subscriptions(self, request, *args, **kwargs):
+    #     all_sub = request.user.users_ubscribers.all()
+    #     if not all_sub:
+    #         return Response({}, status=status.HTTP_200_OK)
+    #     data = [
+    #         SubscribeSerializer(
+    #             User.objects.get(pk=subscriber.subscriber_id)
+    #         ).data
+    #         for subscriber in all_sub]
+    #     page = self.paginate_queryset(data)
+    #     if page is not None:
+    #         serializer = SubscribeSerializer(page, many=True)
+    #         return self.get_paginated_response(serializer.data)
+    #     serializer = self.get_serializer(data, many=True)
+    #     return Response({'sub': serializer.data}, status=status.HTTP_200_OK)
+
+
+    # @action(
+    #     ['post'], detail=True, url_path='subscribe',
+    #     permission_classes=[IsAuthenticated]
+    # )
+    # def subscribe(self, request, *args, **kwargs):
+    #     subscribe_on = get_object_or_404(
+    #         User, pk=kwargs['id']
+    #     )
+    #     Subscriber.objects.create(user=request.user, subscriber=subscribe_on)
+    #     return Response(status=status.HTTP_201_CREATED)
+
+class SubscribeView(
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet
+):
+    queryset = Subscriber.objects.all()
+    serializer_class = SubscribeSerializer
+    def get_queryset(self):
+        all_sub = self.request.user.users_ubscribers.all()
+        data = [User.objects.get(pk=subscriber.subscriber_id) for subscriber in all_sub]
+        return data
 
 
 class TagsView(

@@ -46,6 +46,33 @@ class UserSerializer(UserSerializer):
         return True
 
 
+class SubscribeSerializer(UserSerializer):
+    recipes_count = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
+            'avatar'
+        )
+
+    def get_recipes_count(self, obj):
+        return len(Recipe.objects.filter(author=obj))
+
+    def get_recipes(self, obj):
+        queryset = Recipe.objects.filter(author=obj)
+        serializer = ShopingCartSerializer(instance=queryset, many=True)
+        return serializer.data
+
+
 class TagsSerializer(serializers.ModelSerializer):
 
     class Meta:
