@@ -7,24 +7,27 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
-    UserSerializer,
     UserAvatarUpdateSerializer,
     TagsSerializer,
     IngredientsSerializer,
     RecipesReadSerializer,
     RecipesWriteSerializer,
+    ShortRecipeSerializer,
     ShortLinkSerializer,
-    ShopingCartSerializer
+    UserSerializer,
+    SubscribeSerializer
 )
 from djoser.views import UserViewSet
-from django.urls import path
 from rest_framework.decorators import action
-from django.core.files.base import ContentFile
-import base64
-from django.conf import settings
-import os
-from recipes.models import Tag, Ingredient, Recipe, ShoppingCart, FavoriteRecipes
-from .filters import IngredientSearchFilter, RecipeFilter
+from recipes.models import (
+    Tag,
+    Ingredient,
+    Recipe,
+    ShoppingCart,
+    FavoriteRecipes,
+)
+from users.models import Subscriber
+from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
 from .permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
@@ -33,14 +36,10 @@ User = get_user_model()
 class UserViewSet(UserViewSet):
 
     @action(
-        ['put', 'delete'], detail=False, url_path='me/avatar',
+        ['put'], detail=False, url_path='me/avatar',
         permission_classes=[IsAuthenticated]
     )
     def change_avatar(self, request, *args, **kwargs):
-        if request.method == 'DELETE':
-            self.request.user.avatar = None
-            self.request.user.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         avatar_data = serializer.validated_data.get('avatar')
@@ -51,10 +50,72 @@ class UserViewSet(UserViewSet):
         )
         return Response({'avatar': str(image_url)}, status=status.HTTP_200_OK)
 
+    @change_avatar.mapping.delete
+    def delete_avatar(self, request, *args, **kwargs):
+        self.request.user.avatar = None
+        self.request.user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(["get"], detail=False, permission_classes=[IsAuthenticated])
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
+
+    @action(
+        ['get'], detail=False,
+        permission_classes=[IsAuthenticated], url_path='subscriptions',
+        serializer_class=[SubscribeSerializer],
+        filter_backends=[RecipeLimitFiler]
+    )
+    def subscriptions(self, request, *args, **kwargs):
+        all_sub = request.user.users_ubscribers.all()
+        filter_sub = self.filter_queryset(all_sub)
+        page = self.paginate_queryset(filter_sub)
+        data = [
+            SubscribeSerializer(subscriber.subscriber).data
+            for subscriber in page]
+        return self.get_paginated_response(data)
+
+    @action(
+        ['post'], detail=True, url_path='subscribe',
+        permission_classes=[IsAuthenticated],
+        serializer_class=[SubscribeSerializer],
+        filter_backends=[RecipeLimitFiler]
+    )
+    def subscribe(self, request, *args, **kwargs):
+        subscribe_on = get_object_or_404(
+            User, pk=kwargs['id']
+        )
+        if request.user == subscribe_on:
+            return Response(
+                {'error': 'Нельзя подписаться на себя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        obj, result = Subscriber.objects.get_or_create(
+            user=request.user, subscriber=subscribe_on)
+        if not result:
+            return Response(
+                {'error': 'Вы уже подписаны на этого пользователя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        data = SubscribeSerializer(instance=subscribe_on).data
+        filter_data = self.filter_queryset(data)
+        return Response(filter_data, status=status.HTTP_201_CREATED)
+
+    @subscribe.mapping.delete
+    def del_subscribe(self, request, *args, **kwargs):
+        subscribe_user = get_object_or_404(User, pk=kwargs['id'])
+        subscribe = Subscriber.objects.filter(
+            user=request.user, subscriber=subscribe_user
+        )
+        if not subscribe.exists():
+            return Response(
+                {'error': 'Подписка на пользователя не найдена.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        subscribe.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagsView(
@@ -125,17 +186,20 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 {'detail': 'Рецепт уже добавлен.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = ShopingCartSerializer(instance=recipe)
+        serializer = ShortRecipeSerializer(instance=recipe)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED
         )
 
     def del_favorite_or_shoping_cart(self, request, model, *args, **kwargs):
         recipe = self.get_recipe(kwargs)
-        shoping_cart = get_object_or_404(
-            model, user=request.user, recipe=recipe
-        )
-        shoping_cart.delete()
+        obj = model.objects.filter(user=request.user, recipe=recipe)
+        if not obj.exists():
+            return Response(
+                {'detail': 'Рецепт в списке покупок не найден.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(

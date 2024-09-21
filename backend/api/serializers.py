@@ -2,9 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer
+from django.conf import settings
 
 from users.models import Subscriber
-from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes
+from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes, ShoppingCart, FavoriteRecipes
 from utils.short_link_gen import get_link
 
 User = get_user_model()
@@ -44,6 +45,33 @@ class UserSerializer(UserSerializer):
         except Subscriber.DoesNotExist:
             return False
         return True
+
+
+class SubscribeSerializer(UserSerializer):
+    recipes_count = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
+            'avatar'
+        )
+
+    def get_recipes_count(self, obj):
+        return len(Recipe.objects.filter(author=obj))
+
+    def get_recipes(self, obj):
+        queryset = Recipe.objects.filter(author=obj)
+        serializer = ShortRecipeSerializer(instance=queryset, many=True)
+        return serializer.data
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -98,10 +126,18 @@ class RecipesReadSerializer(serializers.ModelSerializer):
         )
 
     def get_is_in_shopping_cart(self, obj):
-        return False
+        if (not self.context.get('request')
+                or not self.context['request'].user.is_authenticated):
+            return False
+        return ShoppingCart.objects.filter(
+            recipe=obj, user=self.context['request'].user).exists()
 
     def get_is_favorited(self, obj):
-        return False
+        if (not self.context.get('request')
+                or not self.context['request'].user.is_authenticated):
+            return False
+        return FavoriteRecipes.objects.filter(
+            recipe=obj, user=self.context['request'].user).exists()
 
     def get_ingredients(self, obj):
         ingredient_in_recipe = IngredientsRecipes.objects.filter(recipe=obj)
@@ -219,7 +255,14 @@ class ShortLinkSerializer(serializers.ModelSerializer):
         fields = ['short_link']
 
 
-class ShopingCartSerializer(serializers.ModelSerializer):
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = ['id', 'name', 'image', 'cooking_time']
+
+    def get_image(self, obj):
+        if obj.image:
+            return f'{settings.UBSOLUTE_DOMAIN}/{str(obj.image)}'
+        return None

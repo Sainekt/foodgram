@@ -64,7 +64,7 @@ class Subscriber(models.Model):
     )
     subscriber = models.ForeignKey(
         User, on_delete=models.CASCADE,
-        related_name='subscriber'
+        related_name='subscribers'
     )
 
     class Meta:
