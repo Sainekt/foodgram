@@ -104,8 +104,17 @@ class UserViewSet(UserViewSet):
 
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
-        get_object_or_404(
-            Subscriber, user=request.user, subscriber=kwargs['id']).delete()
+        subscribe_user = get_object_or_404(User, pk=kwargs['id'])
+        subscribe = Subscriber.objects.filter(
+            user=request.user, subscriber=subscribe_user
+        )
+        if not subscribe.exists():
+            return Response(
+                {'error': 'Подписка на пользователя не найдена.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        subscribe.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -184,10 +193,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def del_favorite_or_shoping_cart(self, request, model, *args, **kwargs):
         recipe = self.get_recipe(kwargs)
-        shoping_cart = get_object_or_404(
-            model, user=request.user, recipe=recipe
-        )
-        shoping_cart.delete()
+        obj = model.objects.filter(user=request.user, recipe=recipe)
+        if not obj.exists():
+            return Response(
+                {'detail': 'Рецепт в списке покупок не найден.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(

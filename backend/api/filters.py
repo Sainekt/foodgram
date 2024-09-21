@@ -75,13 +75,14 @@ class RecipeLimitFiler(filters.BaseFilterBackend):
             except ValueError:
                 raise ValueError('recipes_limit must be integer')
 
-        if recipes_limit and type(queryset) is QuerySet:
+        if type(queryset) is not QuerySet:
+            self.filter_serializer_data(recipes_limit, queryset)
+
+        elif recipes_limit:
             queryset = queryset.annotate(
                 recipe_count=Count('subscriber__recipes')).filter(
                     recipe_count__lte=recipes_limit
             )
-        else:
-            self.filter_serializer_data(recipes_limit, queryset)
         return queryset
 
     def filter_serializer_data(self, recipes_limit, data):
