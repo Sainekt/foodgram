@@ -5,7 +5,7 @@ from djoser.serializers import UserSerializer
 from django.conf import settings
 
 from users.models import Subscriber
-from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes
+from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes, ShoppingCart, FavoriteRecipes
 from utils.short_link_gen import get_link
 
 User = get_user_model()
@@ -126,10 +126,16 @@ class RecipesReadSerializer(serializers.ModelSerializer):
         )
 
     def get_is_in_shopping_cart(self, obj):
-        return False
+        if not self.context['request'].user.is_authenticated:
+            return False
+        return ShoppingCart.objects.filter(
+            recipe=obj, user=self.context['request'].user).exists()
 
     def get_is_favorited(self, obj):
-        return False
+        if not self.context['request'].user.is_authenticated:
+            return False
+        return FavoriteRecipes.objects.filter(
+            recipe=obj, user=self.context['request'].user).exists()
 
     def get_ingredients(self, obj):
         ingredient_in_recipe = IngredientsRecipes.objects.filter(recipe=obj)

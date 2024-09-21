@@ -27,7 +27,7 @@ from recipes.models import (
     FavoriteRecipes,
 )
 from users.models import Subscriber
-from .filters import IngredientSearchFilter, RecipeFilter
+from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
 from .permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
@@ -63,40 +63,44 @@ class UserViewSet(UserViewSet):
 
     @action(
         ['get'], detail=False,
-        permission_classes=[IsAuthenticated], url_path='subscriptions',)
+        permission_classes=[IsAuthenticated], url_path='subscriptions',
+        serializer_class=[SubscribeSerializer],
+        filter_backends=[RecipeLimitFiler]
+    )
     def subscriptions(self, request, *args, **kwargs):
         all_sub = request.user.users_ubscribers.all()
-        if not all_sub:
-            return Response({}, status=status.HTTP_200_OK)
+        filter_sub = self.filter_queryset(all_sub)
+        page = self.paginate_queryset(filter_sub)
         data = [
-            SubscribeSerializer(
-                User.objects.get(pk=subscriber.subscriber_id)
-            ).data
-            for subscriber in all_sub]
-        page = self.paginate_queryset(data)
-        if page is not None:
-            serializer = SubscribeSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = SubscribeSerializer(data, many=True)
-        return Response({'sub': serializer.data}, status=status.HTTP_200_OK)
+            SubscribeSerializer(subscriber.subscriber).data
+            for subscriber in page]
+        return self.get_paginated_response(data)
 
     @action(
         ['post'], detail=True, url_path='subscribe',
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
+        serializer_class=[SubscribeSerializer],
+        filter_backends=[RecipeLimitFiler]
     )
     def subscribe(self, request, *args, **kwargs):
         subscribe_on = get_object_or_404(
             User, pk=kwargs['id']
         )
+        if request.user == subscribe_on:
+            return Response(
+                {'error': 'Нельзя подписаться на себя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         obj, result = Subscriber.objects.get_or_create(
             user=request.user, subscriber=subscribe_on)
         if not result:
             return Response(
-                {'error': 'You are already subscribed'},
+                {'error': 'Вы уже подписаны на этого пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         data = SubscribeSerializer(instance=subscribe_on).data
-        return Response(data, status=status.HTTP_201_CREATED)
+        filter_data = self.filter_queryset(data)
+        return Response(filter_data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
