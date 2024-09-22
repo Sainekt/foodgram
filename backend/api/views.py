@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 # from rest_condition import Or
-from rest_framework import filters, status, viewsets, generics, mixins
+from rest_framework import filters, status, viewsets, generics, mixins, views
 from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
@@ -29,7 +29,8 @@ from recipes.models import (
 from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
 from .permissions import IsAuthorOrReadOnly
-
+from django.conf import settings
+from django.shortcuts import redirect
 User = get_user_model()
 
 
@@ -69,11 +70,11 @@ class UserViewSet(UserViewSet):
     )
     def subscriptions(self, request, *args, **kwargs):
         all_sub = request.user.users_ubscribers.all()
-        filter_sub = self.filter_queryset(all_sub)
-        page = self.paginate_queryset(filter_sub)
+        page = self.paginate_queryset(all_sub)
         data = [
             SubscribeSerializer(subscriber.subscriber).data
             for subscriber in page]
+        data = self.filter_queryset(data)
         return self.get_paginated_response(data)
 
     @action(
@@ -219,7 +220,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(
         ['post'], detail=True, url_path='favorite',
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated],
     )
     def add_favorite(self, request, *args, **kwargs):
         return self.add_favorite_or_shoping_cart(
@@ -231,3 +232,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self.del_favorite_or_shoping_cart(
             request, FavoriteRecipes, *args, **kwargs
         )
+
+
+class ShortLinkRecipeView(views.APIView):
+    def get(self, request, *args, **kwargs):
+        recipe = get_object_or_404(Recipe, short_link=kwargs['slug'])
+        url = f'{settings.UBSOLUTE_DOMAIN}/recipes/{recipe.id}/'
+        return redirect(url)

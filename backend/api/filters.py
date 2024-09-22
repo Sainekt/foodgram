@@ -58,10 +58,10 @@ class RecipeFilter(filters.BaseFilterBackend):
             return queryset
         if is_in_shopping_cart:
             queryset = queryset.filter(
-                shopping_cart__in=is_in_shopping_cart).distinct()
+                shopping_cart__user=request.user).distinct()
         if is_favorited:
             queryset = queryset.filter(
-                favorite_recipes__in=is_favorited).distinct()
+                favorite_recipes__user=request.user).distinct()
         return queryset
 
 
@@ -75,17 +75,10 @@ class RecipeLimitFiler(filters.BaseFilterBackend):
             except ValueError:
                 raise ValueError('recipes_limit must be integer')
 
-        if type(queryset) is not QuerySet:
-            self.filter_serializer_data(recipes_limit, queryset)
+        if type(queryset) is list:
+            for i in range(len(queryset)):
+                queryset[i]['recipes'] = queryset[i]['recipes'][:recipes_limit]
+        else:
+            queryset['recipes'] = queryset['recipes'][:recipes_limit]
 
-        elif recipes_limit:
-            queryset = queryset.annotate(
-                recipe_count=Count('subscriber__recipes')).filter(
-                    recipe_count__lte=recipes_limit
-            )
         return queryset
-
-    def filter_serializer_data(self, recipes_limit, data):
-        filter_recipes = data['recipes'][:recipes_limit]
-        data['recipes'] = filter_recipes
-        return data

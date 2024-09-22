@@ -50,6 +50,7 @@ class UserSerializer(UserSerializer):
 class SubscribeSerializer(UserSerializer):
     recipes_count = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -72,6 +73,10 @@ class SubscribeSerializer(UserSerializer):
         queryset = Recipe.objects.filter(author=obj)
         serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
+
+    def get_is_subscribed(self, obj):
+        # Сериализирует данные только подписчиков, всегда True
+        return True
 
 
 class TagsSerializer(serializers.ModelSerializer):
