@@ -1,10 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-# from rest_condition import Or
-from rest_framework import filters, status, viewsets, generics, mixins, views
-from django_filters.rest_framework import DjangoFilterBackend
-# from rest_framework.decorators import action
-from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
+from rest_framework import status, viewsets, mixins, views
+from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
     UserAvatarUpdateSerializer,
@@ -13,8 +10,6 @@ from .serializers import (
     RecipesReadSerializer,
     RecipesWriteSerializer,
     ShortRecipeSerializer,
-    ShortLinkSerializer,
-    UserSerializer,
     SubscribeSerializer
 )
 from djoser.views import UserViewSet
@@ -25,12 +20,17 @@ from recipes.models import (
     Recipe,
     ShoppingCart,
     FavoriteRecipes,
+    IngredientsRecipes
 )
 from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
 from .permissions import IsAuthorOrReadOnly
 from django.conf import settings
 from django.shortcuts import redirect
+from utils.pdf_gen import get_pdf
+from django.http import HttpResponse
+import os
+
 User = get_user_model()
 
 
@@ -166,12 +166,25 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def download_shopping_cart(self, request, *args, **kwargs):
-        # Создаем текст файла
-        text = "Это текст файла.\n"
-        # Создаем ответ
-        response = Response(text, content_type='text/plain')
-        # Установка заголовка Content-Disposition для загрузки файла
-        response.headers["Content-Disposition"] = "attachment; filename=my_file.txt"
+        data = {}
+        shopping_cart = self.request.user.shopping_cart.select_related(
+            'recipe').all()
+        for ingredients in IngredientsRecipes.objects.prefetch_related(
+                'ingredient').filter(recipe__in=[
+                    i.recipe for i in shopping_cart]):
+            if ingredients.ingredient not in data:
+                data[ingredients.ingredient] = 0
+            data[ingredients.ingredient] += ingredients.amount
+
+        pdf_filename = get_pdf(data)
+        with open(pdf_filename, 'rb') as file:
+            os.remove(pdf_filename)
+            response = HttpResponse(
+                file.read(), content_type='application/pdf'
+            )
+            response[
+                'Content-Disposition'] = 'inline; filename="shopping_cart.pdf"'
+
         return response
 
     def get_recipe(self, kwargs):
@@ -234,7 +247,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
 
-class ShortLinkRecipeView(views.APIView):
+class ShortLinkRedirectRecipeView(views.APIView):
     def get(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, short_link=kwargs['slug'])
         url = f'{settings.UBSOLUTE_DOMAIN}/recipes/{recipe.id}/'

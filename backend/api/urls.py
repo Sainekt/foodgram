@@ -6,20 +6,19 @@ from .views import (
     TagsView,
     IngredientsView,
     RecipeViewSet,
-    ShortLinkSerializer,
 )
 app_name = 'api_v1'
 
 Router = DefaultRouter if settings.DEBUG else SimpleRouter
 
 router_v1 = Router()
-router_v1.register(r'users', UserViewSet)
-router_v1.register(r'tags', TagsView)
+router_v1.register(r'users', UserViewSet, basename='users')
+router_v1.register(r'tags', TagsView, basename='tags')
 router_v1.register(r'ingredients', IngredientsView, basename='ingredients')
 router_v1.register(r'recipes', RecipeViewSet, basename='recipes')
 
 
 urlpatterns = [
     path('', include(router_v1.urls), name='routers'),
-    path('auth/', include('djoser.urls.authtoken')),
+    path('auth/', include('djoser.urls.authtoken'), name='auth'),
 ]
