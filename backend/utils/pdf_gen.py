@@ -5,7 +5,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.units import mm
 from django.conf import settings
 
-x, y = A4
 
 fonts_path = settings.BASE_DIR / 'static' / 'fonts'
 file_path = settings.BASE_DIR / 'static' / 'pdf_gen'
@@ -26,8 +25,8 @@ def write_pdf(pdf, data):
             pdf.setFont('regular', 10)
             y = 290 * mm
         pdf.drawString(x, y, (
-            f'{ingridient.name} ({ingridient.measurement_unit}), '
-            f'{data[ingridient]}')
+            f'{ingridient.name}, '
+            f'{data[ingridient]}({ingridient.measurement_unit})')
         )
         pdf.rect(x - 7 * mm, y - 1 * mm, 5 * mm, 5 * mm, fill=0)
         y -= 10 * mm
@@ -41,7 +40,7 @@ def get_pdf(data):
     pdf.drawString(50 * mm, 240 * mm, 'Список покупок для рецептов')
     pdf.setFont('regular', 15)
     pdf.drawString(50 * mm, 230 * mm, (
-        f'Всего к покупке: {len(data)} ингридиента(-ов)'))
+        f'Всего к покупке: {len(data)} ингридиент(a-ов)'))
     write_pdf(pdf, data)
     pdf.save()
     return pdf._filename

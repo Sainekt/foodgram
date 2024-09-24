@@ -178,13 +178,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         pdf_filename = get_pdf(data)
         with open(pdf_filename, 'rb') as file:
-            os.remove(pdf_filename)
             response = HttpResponse(
                 file.read(), content_type='application/pdf'
             )
             response[
                 'Content-Disposition'] = 'inline; filename="shopping_cart.pdf"'
-
+        os.remove(pdf_filename)
         return response
 
     def get_recipe(self, kwargs):
