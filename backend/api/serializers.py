@@ -5,7 +5,9 @@ from djoser.serializers import UserSerializer
 from django.conf import settings
 
 from users.models import Subscriber
-from recipes.models import Tag, Ingredient, Recipe, IngredientsRecipes, ShoppingCart, FavoriteRecipes
+from recipes.models import (
+    Tag, Ingredient, Recipe, IngredientsRecipes, ShoppingCart, FavoriteRecipes
+)
 from utils.short_link_gen import get_link
 
 User = get_user_model()
@@ -40,11 +42,8 @@ class UserSerializer(UserSerializer):
             return False
         if not request.user.is_authenticated:
             return False
-        try:
-            Subscriber.objects.get(user=request.user, subscriber=obj)
-        except Subscriber.DoesNotExist:
-            return False
-        return True
+        return Subscriber.objects.filter(
+            user=request.user, subscriber=obj).exists()
 
 
 class SubscribeSerializer(UserSerializer):
@@ -67,10 +66,10 @@ class SubscribeSerializer(UserSerializer):
         )
 
     def get_recipes_count(self, obj):
-        return len(Recipe.objects.filter(author=obj))
+        return len(Recipe.with_related.filter(author=obj))
 
     def get_recipes(self, obj):
-        queryset = Recipe.objects.filter(author=obj)
+        queryset = Recipe.with_related.filter(author=obj)
         serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
 

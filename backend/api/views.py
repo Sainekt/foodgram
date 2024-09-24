@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets, mixins, views
+from rest_framework import status, viewsets, views
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
@@ -30,11 +30,20 @@ from django.shortcuts import redirect
 from utils.pdf_gen import get_pdf
 from django.http import HttpResponse
 import os
+from .mixins import ListRetriveMixin
 
 User = get_user_model()
 
 
 class UserViewSet(UserViewSet):
+
+    def delete_avatar_and_file(self, request):
+        try:
+            os.remove(f'{settings.BASE_DIR}/{settings.MEDIA_URL}'
+                      f'{request.user.avatar}')
+        except FileNotFoundError:
+            pass
+        request.user.avatar.delete()
 
     @action(
         ['put'], detail=False, url_path='me/avatar',
@@ -44,17 +53,18 @@ class UserViewSet(UserViewSet):
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         avatar_data = serializer.validated_data.get('avatar')
+        if request.user.avatar:
+            self.delete_avatar_and_file(request)
         request.user.avatar = avatar_data
         request.user.save()
         image_url = request.build_absolute_uri(
             f'/media/users/{avatar_data.name}'
         )
-        return Response({'avatar': str(image_url)}, status=status.HTTP_200_OK)
+        return Response({'avatar': image_url}, status=status.HTTP_200_OK)
 
     @change_avatar.mapping.delete
     def delete_avatar(self, request, *args, **kwargs):
-        self.request.user.avatar = None
-        self.request.user.save()
+        self.delete_avatar_and_file(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(["get"], detail=False, permission_classes=[IsAuthenticated])
@@ -69,7 +79,9 @@ class UserViewSet(UserViewSet):
         filter_backends=[RecipeLimitFiler]
     )
     def subscriptions(self, request, *args, **kwargs):
-        all_sub = request.user.users_ubscribers.all()
+        all_sub = request.user.users_ubscribers.select_related(
+            'user', 'subscriber'
+        )
         page = self.paginate_queryset(all_sub)
         data = [
             SubscribeSerializer(subscriber.subscriber).data
@@ -119,22 +131,15 @@ class UserViewSet(UserViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class TagsView(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
-):
+class TagsView(ListRetriveMixin):
     queryset = Tag.objects.all()
     serializer_class = TagsSerializer
-    pagination_class = None
 
 
-class IngredientsView(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
-):
+class IngredientsView(ListRetriveMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
-    pagination_class = None
     filter_backends = [IngredientSearchFilter]
-    search_fields = ['^name',]
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
