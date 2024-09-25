@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets, views
+from rest_framework import status, viewsets, views, pagination
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
@@ -20,7 +20,6 @@ from recipes.models import (
     Recipe,
     ShoppingCart,
     FavoriteRecipes,
-    IngredientsRecipes
 )
 from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
@@ -67,10 +66,15 @@ class UserViewSet(UserViewSet):
         self.delete_avatar_and_file(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(["get"], detail=False, permission_classes=[IsAuthenticated])
+    @action(['get'], detail=False, permission_classes=[IsAuthenticated])
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
+
+    def get_subscriber_user(self, **kwargs):
+        get_object_or_404(
+            User, pk=kwargs['id']
+        )
 
     @action(
         ['get'], detail=False,
@@ -84,8 +88,8 @@ class UserViewSet(UserViewSet):
         )
         page = self.paginate_queryset(all_sub)
         data = [
-            SubscribeSerializer(subscriber.subscriber).data
-            for subscriber in page]
+            SubscribeSerializer(subscriber_obj.subscriber).data
+            for subscriber_obj in page]
         data = self.filter_queryset(data)
         return self.get_paginated_response(data)
 
@@ -96,31 +100,27 @@ class UserViewSet(UserViewSet):
         filter_backends=[RecipeLimitFiler]
     )
     def subscribe(self, request, *args, **kwargs):
-        subscribe_on = get_object_or_404(
-            User, pk=kwargs['id']
-        )
-        if request.user == subscribe_on:
+        subscribe_user = self.get_subscriber_user(**kwargs)
+        if request.user == subscribe_user:
             return Response(
                 {'error': 'Нельзя подписаться на себя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj, result = Subscriber.objects.get_or_create(
-            user=request.user, subscriber=subscribe_on)
+            user=request.user, subscriber=subscribe_user)
         if not result:
             return Response(
                 {'error': 'Вы уже подписаны на этого пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        data = SubscribeSerializer(instance=subscribe_on).data
+        data = SubscribeSerializer(instance=subscribe_user).data
         filter_data = self.filter_queryset(data)
         return Response(filter_data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
-        subscribe_user = get_object_or_404(User, pk=kwargs['id'])
-        subscribe = Subscriber.objects.filter(
-            user=request.user, subscriber=subscribe_user
-        )
+        subscribe_user = self.get_subscriber_user(**kwargs)
+        subscribe = request.user.subscribers.filter(subscriber=subscribe_user)
         if not subscribe.exists():
             return Response(
                 {'error': 'Подписка на пользователя не найдена.'},
@@ -147,6 +147,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filter_backends = [RecipeFilter]
     filterset_fields = ['author', 'tags']
     permission_classes = [IsAuthorOrReadOnly]
+    pagination_class = pagination.PageNumberPagination
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
@@ -168,14 +169,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request, *args, **kwargs):
         data = {}
-        shopping_cart = self.request.user.shopping_cart.select_related(
-            'recipe').all()
-        for ingredients in IngredientsRecipes.objects.prefetch_related(
-                'ingredient').filter(recipe__in=[
-                    i.recipe for i in shopping_cart]):
-            if ingredients.ingredient not in data:
-                data[ingredients.ingredient] = 0
-            data[ingredients.ingredient] += ingredients.amount
+        shopping_cart = self.request.user.shopping_cart.prefetch_related(
+            'user', 'recipe'
+        )
+        ingredients_in_recipes = [
+            i.recipe.recipe_ingredients.all() for i in shopping_cart
+        ]
+        for ingredients in ingredients_in_recipes:
+            for ingredient in ingredients:
+                if ingredient.ingredient not in data:
+                    data[ingredient.ingredient] = 0
+                data[ingredient.ingredient] += ingredient.amount
 
         pdf_filename = get_pdf(data)
         with open(pdf_filename, 'rb') as file:
