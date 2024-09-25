@@ -72,9 +72,7 @@ class UserViewSet(UserViewSet):
         return self.retrieve(request, *args, **kwargs)
 
     def get_subscriber_user(self, **kwargs):
-        get_object_or_404(
-            User, pk=kwargs['id']
-        )
+        return get_object_or_404(User, pk=kwargs['id'])
 
     @action(
         ['get'], detail=False,
@@ -120,7 +118,9 @@ class UserViewSet(UserViewSet):
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
         subscribe_user = self.get_subscriber_user(**kwargs)
-        subscribe = request.user.subscribers.filter(subscriber=subscribe_user)
+        subscribe = request.user.users_ubscribers.filter(
+            subscriber=subscribe_user
+        )
         if not subscribe.exists():
             return Response(
                 {'error': 'Подписка на пользователя не найдена.'},
