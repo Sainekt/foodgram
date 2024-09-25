@@ -4,7 +4,6 @@ from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer
 from django.conf import settings
 
-from users.models import Subscriber
 from recipes.models import (
     Tag, Ingredient, Recipe, IngredientsRecipes
 )
@@ -18,6 +17,8 @@ from common.constants import (
     INGREDIENT, AMOUNT, MEASUREMENT_UNIT
 )
 
+from .mixins import GetUserMixin
+
 
 User = get_user_model()
 
@@ -30,7 +31,7 @@ class UserAvatarUpdateSerializer(serializers.ModelSerializer):
         fields = ('avatar',)
 
 
-class UserSerializer(UserSerializer):
+class UserSerializer(GetUserMixin, UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
@@ -46,13 +47,9 @@ class UserSerializer(UserSerializer):
         )
 
     def get_is_subscribed(self, obj):
-        request = self.context.get(REQUEST)
-        if not request:
+        if not (user := self.get_user_object()):
             return False
-        if not request.user.is_authenticated:
-            return False
-        return Subscriber.objects.filter(
-            user=request.user, subscriber=obj).exists()
+        return user.subscribers.all().exists()
 
 
 class SubscribeSerializer(UserSerializer):
@@ -123,7 +120,7 @@ class IngredientsInRecipeCreateSerializer(serializers.ModelSerializer):
         fields = [ID, AMOUNT]
 
 
-class RecipesReadSerializer(serializers.ModelSerializer):
+class RecipesReadSerializer(GetUserMixin, serializers.ModelSerializer):
     is_in_shopping_cart = serializers.SerializerMethodField()
     is_favorited = serializers.SerializerMethodField()
     author = UserSerializer(many=False, read_only=True)
@@ -138,10 +135,12 @@ class RecipesReadSerializer(serializers.ModelSerializer):
         )
 
     def get_is_in_shopping_cart(self, obj):
-        return obj.shopping_cart.all().exists()
+        user = self.get_user_object()
+        return obj.shopping_cart.filter(user=user).exists()
 
     def get_is_favorited(self, obj):
-        return obj.favorite_recipes.all().exists()
+        user = self.get_user_object()
+        return obj.favorite_recipes.filter(user=user).exists()
 
     def get_ingredients(self, obj):
         ingredient_in_recipe = obj.recipe_ingredients.all()
@@ -181,7 +180,7 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     ERROR_DOES_NOT_EXISTS_INGRIDIENT
                 )
-            if data['id'] in check_unique:
+            if data[ID] in check_unique:
                 raise serializers.ValidationError(
                     ERROR_DUBLE_INGREDIENT
                 )
@@ -254,8 +253,7 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         return instance
 
     def to_representation(self, instance):
-        representation = RecipesReadSerializer(instance)
-        return representation.data
+        return RecipesReadSerializer(instance).data
 
 
 class ShortLinkSerializer(serializers.ModelSerializer):
