@@ -143,14 +143,10 @@ class IngredientsView(ListRetriveMixin):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
+    queryset = Recipe.with_related.all()
     filter_backends = [RecipeFilter]
     filterset_fields = ['author', 'tags']
     permission_classes = [IsAuthorOrReadOnly]
-
-    def perform_create(self, serializer):
-        serializer.is_valid(raise_exception=True)
-        serializer.save(author=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:

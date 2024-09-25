@@ -131,12 +131,12 @@ class Recipe(models.Model):
         default_related_name = 'recipes'
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['author', 'name'],
-                name='unique_author_name'
-            )
-        ]
+        # constraints = [
+        #     models.UniqueConstraint(
+        #         fields=['author', 'name'],
+        #         name='unique_author_name'
+        #     )
+        # ]
 
 
 class TagsRecipes(models.Model):
