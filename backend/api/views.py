@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets, views, pagination
+from rest_framework import status, viewsets, views
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
@@ -30,6 +30,7 @@ from utils.pdf_gen import get_pdf
 from django.http import HttpResponse
 import os
 from .mixins import ListRetriveMixin
+from .pagination import RecipesPagination
 
 User = get_user_model()
 
@@ -147,7 +148,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filter_backends = [RecipeFilter]
     filterset_fields = ['author', 'tags']
     permission_classes = [IsAuthorOrReadOnly]
-    pagination_class = pagination.PageNumberPagination
+    pagination_class = RecipesPagination
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
