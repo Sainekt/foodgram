@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets, mixins, views
+from rest_framework import status, viewsets, views
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from .serializers import (
@@ -20,7 +20,6 @@ from recipes.models import (
     Recipe,
     ShoppingCart,
     FavoriteRecipes,
-    IngredientsRecipes
 )
 from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
@@ -30,11 +29,29 @@ from django.shortcuts import redirect
 from utils.pdf_gen import get_pdf
 from django.http import HttpResponse
 import os
+from .mixins import ListRetriveMixin
+from .pagination import RecipesPagination
+from common.constants import (
+    ID, USER, SUBSCRIBER, AVATAR, SUBSCRIPTIONS,
+    ERROR_SUBSCRIBER_USER_USER, ERROR_SUBSCRIBER_IS_ALREADY,
+    ERROR_SUBSCRIBER_DOES_NOT_EXISTS, AUTHOR, TAGS, RECIPE,
+    ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
+    ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS
+
+)
 
 User = get_user_model()
 
 
 class UserViewSet(UserViewSet):
+
+    def delete_avatar_and_file(self, request):
+        try:
+            os.remove(f'{settings.BASE_DIR}/{settings.MEDIA_URL}'
+                      f'{request.user.avatar}')
+        except FileNotFoundError:
+            pass
+        request.user.avatar.delete()
 
     @action(
         ['put'], detail=False, url_path='me/avatar',
@@ -43,37 +60,43 @@ class UserViewSet(UserViewSet):
     def change_avatar(self, request, *args, **kwargs):
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        avatar_data = serializer.validated_data.get('avatar')
+        avatar_data = serializer.validated_data.get(AVATAR)
+        if request.user.avatar:
+            self.delete_avatar_and_file(request)
         request.user.avatar = avatar_data
         request.user.save()
         image_url = request.build_absolute_uri(
             f'/media/users/{avatar_data.name}'
         )
-        return Response({'avatar': str(image_url)}, status=status.HTTP_200_OK)
+        return Response({AVATAR: image_url}, status=status.HTTP_200_OK)
 
     @change_avatar.mapping.delete
     def delete_avatar(self, request, *args, **kwargs):
-        self.request.user.avatar = None
-        self.request.user.save()
+        self.delete_avatar_and_file(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(["get"], detail=False, permission_classes=[IsAuthenticated])
+    @action(['get'], detail=False, permission_classes=[IsAuthenticated])
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
         return self.retrieve(request, *args, **kwargs)
 
+    def get_subscriber_user(self, **kwargs):
+        return get_object_or_404(User, pk=kwargs[ID])
+
     @action(
         ['get'], detail=False,
-        permission_classes=[IsAuthenticated], url_path='subscriptions',
+        permission_classes=[IsAuthenticated], url_path=SUBSCRIPTIONS,
         serializer_class=[SubscribeSerializer],
         filter_backends=[RecipeLimitFiler]
     )
     def subscriptions(self, request, *args, **kwargs):
-        all_sub = request.user.users_ubscribers.all()
+        all_sub = request.user.users_ubscribers.select_related(
+            USER, SUBSCRIBER
+        )
         page = self.paginate_queryset(all_sub)
         data = [
-            SubscribeSerializer(subscriber.subscriber).data
-            for subscriber in page]
+            SubscribeSerializer(subscriber_obj.subscriber).data
+            for subscriber_obj in page]
         data = self.filter_queryset(data)
         return self.get_paginated_response(data)
 
@@ -84,34 +107,32 @@ class UserViewSet(UserViewSet):
         filter_backends=[RecipeLimitFiler]
     )
     def subscribe(self, request, *args, **kwargs):
-        subscribe_on = get_object_or_404(
-            User, pk=kwargs['id']
-        )
-        if request.user == subscribe_on:
+        subscribe_user = self.get_subscriber_user(**kwargs)
+        if request.user == subscribe_user:
             return Response(
-                {'error': 'Нельзя подписаться на себя.'},
+                ERROR_SUBSCRIBER_USER_USER,
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj, result = Subscriber.objects.get_or_create(
-            user=request.user, subscriber=subscribe_on)
+            user=request.user, subscriber=subscribe_user)
         if not result:
             return Response(
-                {'error': 'Вы уже подписаны на этого пользователя.'},
+                ERROR_SUBSCRIBER_IS_ALREADY,
                 status=status.HTTP_400_BAD_REQUEST
             )
-        data = SubscribeSerializer(instance=subscribe_on).data
+        data = SubscribeSerializer(instance=subscribe_user).data
         filter_data = self.filter_queryset(data)
         return Response(filter_data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
-        subscribe_user = get_object_or_404(User, pk=kwargs['id'])
-        subscribe = Subscriber.objects.filter(
-            user=request.user, subscriber=subscribe_user
+        subscribe_user = self.get_subscriber_user(**kwargs)
+        subscribe = request.user.users_ubscribers.filter(
+            subscriber=subscribe_user
         )
         if not subscribe.exists():
             return Response(
-                {'error': 'Подписка на пользователя не найдена.'},
+                ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -119,33 +140,23 @@ class UserViewSet(UserViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class TagsView(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
-):
+class TagsView(ListRetriveMixin):
     queryset = Tag.objects.all()
     serializer_class = TagsSerializer
-    pagination_class = None
 
 
-class IngredientsView(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
-):
+class IngredientsView(ListRetriveMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
-    pagination_class = None
     filter_backends = [IngredientSearchFilter]
-    search_fields = ['^name',]
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
+    queryset = Recipe.with_related.all()
     filter_backends = [RecipeFilter]
-    filterset_fields = ['author', 'tags']
+    filterset_fields = [AUTHOR, TAGS]
     permission_classes = [IsAuthorOrReadOnly]
-
-    def perform_create(self, serializer):
-        serializer.is_valid(raise_exception=True)
-        serializer.save(author=self.request.user)
+    pagination_class = RecipesPagination
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
@@ -167,14 +178,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request, *args, **kwargs):
         data = {}
-        shopping_cart = self.request.user.shopping_cart.select_related(
-            'recipe').all()
-        for ingredients in IngredientsRecipes.objects.prefetch_related(
-                'ingredient').filter(recipe__in=[
-                    i.recipe for i in shopping_cart]):
-            if ingredients.ingredient not in data:
-                data[ingredients.ingredient] = 0
-            data[ingredients.ingredient] += ingredients.amount
+        shopping_cart = self.request.user.shopping_cart.prefetch_related(
+            USER, RECIPE
+        )
+        ingredients_in_recipes = [
+            i.recipe.recipe_ingredients.all() for i in shopping_cart
+        ]
+        for ingredients in ingredients_in_recipes:
+            for ingredient in ingredients:
+                if ingredient.ingredient not in data:
+                    data[ingredient.ingredient] = 0
+                data[ingredient.ingredient] += ingredient.amount
 
         pdf_filename = get_pdf(data)
         with open(pdf_filename, 'rb') as file:
@@ -196,7 +210,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         if not created:
             return Response(
-                {'detail': 'Рецепт уже добавлен.'},
+                ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
         serializer = ShortRecipeSerializer(instance=recipe)
@@ -209,7 +223,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         obj = model.objects.filter(user=request.user, recipe=recipe)
         if not obj.exists():
             return Response(
-                {'detail': 'Рецепт в списке покупок не найден.'},
+                ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj.delete()

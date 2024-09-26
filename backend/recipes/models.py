@@ -72,6 +72,23 @@ class IngredientsRecipes(models.Model):
         verbose_name_plural = 'Ингридиенты в рецептах'
 
 
+class RecipeQuerySet(models.QuerySet):
+    def with_related_data(self):
+        return self.select_related('author')
+
+    def with_prefetch_data(self):
+        return self.prefetch_related('tags', 'ingredients')
+
+
+class RecipeManager(models.Manager):
+    def get_queryset(self):
+        return (
+            RecipeQuerySet(self.model)
+            .with_related_data()
+            .with_prefetch_data()
+        )
+
+
 class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
@@ -104,6 +121,8 @@ class Recipe(models.Model):
         max_length=10,
         unique=True
     )
+    objects = models.Manager()
+    with_related = RecipeManager()
 
     def __str__(self):
         return self.name
@@ -112,6 +131,7 @@ class Recipe(models.Model):
         default_related_name = 'recipes'
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        ordering = ['-id']
         constraints = [
             models.UniqueConstraint(
                 fields=['author', 'name'],

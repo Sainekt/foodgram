@@ -1,54 +1,35 @@
 from rest_framework import filters
-from django.db.models import Count
-from django.db.models.query import QuerySet
-from django.db import models
-from functools import reduce
-import operator
+from common.constants import (
+    TAGS, AUTHOR, NAME, IS_FAVORITED, IS_IN_SHOPPING_CART, RECIPES
+)
 
 
-class IngredientSearchFilter(filters.SearchFilter):
-    search_param = 'name'
+class IngredientSearchFilter(filters.BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
-        search_fields = self.get_search_fields(view, request)
-        search_terms = self.get_search_terms(request)
-
-        if not search_fields or not search_terms:
+        name = request.query_params.get(NAME)
+        if not name:
             return queryset
-
-        orm_lookups = [
-            self.construct_search(str(search_field), queryset)
-            for search_field in search_fields
-        ]
-
-        base = queryset
-        conditions = (
-            reduce(
-                operator.or_,
-                # сделал фильтрацию не чувствительной к регистру.
-                (models.Q(**{orm_lookup: term.lower()})
-                    for orm_lookup in orm_lookups
-                 )
-            ) for term in search_terms
-        )
-        queryset = queryset.filter(reduce(operator.and_, conditions))
-
-        if self.must_call_distinct(queryset, search_fields):
-            queryset = queryset.filter(pk=models.OuterRef('pk'))
-            queryset = base.filter(models.Exists(queryset))
-        return queryset
+        name = name.lower()
+        queryset_filter = queryset.filter(
+            name__istartswith=name).distinct()
+        if not queryset_filter:
+            queryset_filter = queryset.filter(
+                name__icontains=name
+            ).distinct()
+        return queryset_filter
 
 
 class RecipeFilter(filters.BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
-        tags = request.query_params.getlist('tags')
-        author = request.query_params.getlist('author')
-        is_in_shopping_cart = request.query_params.getlist(
-            'is_in_shopping_cart'
+        tags = request.query_params.getlist(TAGS)
+        author = request.query_params.getlist(AUTHOR)
+        is_in_shopping_cart = request.query_params.get(
+            IS_IN_SHOPPING_CART
         )
-        is_favorited = request.query_params.getlist(
-            'is_favorited'
+        is_favorited = request.query_params.get(
+            IS_FAVORITED
         )
         if tags:
             queryset = queryset.filter(tags__slug__in=tags).distinct()
@@ -67,18 +48,18 @@ class RecipeFilter(filters.BaseFilterBackend):
 
 class RecipeLimitFiler(filters.BaseFilterBackend):
 
-    def filter_queryset(self, request, queryset, view):
-        recipes_limit = request.query_params.get('recipes_limit', None)
+    def filter_queryset(self, request, data: dict, view):
+        recipes_limit = request.query_params.get('recipes_limit')
         if recipes_limit:
             try:
                 recipes_limit = int(recipes_limit)
             except ValueError:
                 raise ValueError('recipes_limit must be integer')
 
-        if type(queryset) is list:
-            for i in range(len(queryset)):
-                queryset[i]['recipes'] = queryset[i]['recipes'][:recipes_limit]
+        if type(data) is list:
+            for i in range(len(data)):
+                data[i][RECIPES] = data[i][RECIPES][:recipes_limit]
         else:
-            queryset['recipes'] = queryset['recipes'][:recipes_limit]
+            data[RECIPES] = data[RECIPES][:recipes_limit]
 
-        return queryset
+        return data
