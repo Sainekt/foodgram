@@ -1,10 +1,13 @@
 from rest_framework import filters
+from common.constants import (
+    TAGS, AUTHOR, NAME, IS_FAVORITED, IS_IN_SHOPPING_CART, RECIPES
+)
 
 
 class IngredientSearchFilter(filters.BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
-        name = request.query_params.get('name')
+        name = request.query_params.get(NAME)
         if not name:
             return queryset
         name = name.lower()
@@ -20,13 +23,13 @@ class IngredientSearchFilter(filters.BaseFilterBackend):
 class RecipeFilter(filters.BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
-        tags = request.query_params.getlist('tags')
-        author = request.query_params.getlist('author')
+        tags = request.query_params.getlist(TAGS)
+        author = request.query_params.getlist(AUTHOR)
         is_in_shopping_cart = request.query_params.get(
-            'is_in_shopping_cart'
+            IS_IN_SHOPPING_CART
         )
         is_favorited = request.query_params.get(
-            'is_favorited'
+            IS_FAVORITED
         )
         if tags:
             queryset = queryset.filter(tags__slug__in=tags).distinct()
@@ -55,8 +58,8 @@ class RecipeLimitFiler(filters.BaseFilterBackend):
 
         if type(data) is list:
             for i in range(len(data)):
-                data[i]['recipes'] = data[i]['recipes'][:recipes_limit]
+                data[i][RECIPES] = data[i][RECIPES][:recipes_limit]
         else:
-            data['recipes'] = data['recipes'][:recipes_limit]
+            data[RECIPES] = data[RECIPES][:recipes_limit]
 
         return data

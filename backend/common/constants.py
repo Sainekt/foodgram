@@ -30,6 +30,25 @@ ERROR_DOES_NOT_EXISTS_INGRIDIENT = (
 REQUEST = 'request'
 SLUG = 'slug'
 AMOUNT = 'amount'
+RECIPE = 'recipe'
+RECIPES = 'recipes'
+ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS = {
+    'detail': 'Рецепт уже добавлен в избранные'}
+ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS = {
+    'detail': 'Рецепт в списке покупок не найден.'}
 
 # Ingredietn
 MEASUREMENT_UNIT = 'measurement_unit'
+
+
+# User
+AVATAR = 'avatar'
+SUBSCRIBER = 'subscriber'
+USER = 'user'
+SUBSCRIPTIONS = 'subscriptions'
+SUBSCRIBE = 'subscribe'
+ERROR_SUBSCRIBER_USER_USER = {'error': 'Нельзя подписаться на себя.'}
+ERROR_SUBSCRIBER_IS_ALREADY = {
+    'error': 'Вы уже подписаны на этого пользователя.'}
+ERROR_SUBSCRIBER_DOES_NOT_EXISTS = {
+    'error': 'Подписка на пользователя не найдена.'}

@@ -31,6 +31,14 @@ from django.http import HttpResponse
 import os
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination
+from common.constants import (
+    ID, USER, SUBSCRIBER, AVATAR, SUBSCRIPTIONS,
+    ERROR_SUBSCRIBER_USER_USER, ERROR_SUBSCRIBER_IS_ALREADY,
+    ERROR_SUBSCRIBER_DOES_NOT_EXISTS, AUTHOR, TAGS, RECIPE,
+    ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
+    ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS
+
+)
 
 User = get_user_model()
 
@@ -52,7 +60,7 @@ class UserViewSet(UserViewSet):
     def change_avatar(self, request, *args, **kwargs):
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        avatar_data = serializer.validated_data.get('avatar')
+        avatar_data = serializer.validated_data.get(AVATAR)
         if request.user.avatar:
             self.delete_avatar_and_file(request)
         request.user.avatar = avatar_data
@@ -60,7 +68,7 @@ class UserViewSet(UserViewSet):
         image_url = request.build_absolute_uri(
             f'/media/users/{avatar_data.name}'
         )
-        return Response({'avatar': image_url}, status=status.HTTP_200_OK)
+        return Response({AVATAR: image_url}, status=status.HTTP_200_OK)
 
     @change_avatar.mapping.delete
     def delete_avatar(self, request, *args, **kwargs):
@@ -73,17 +81,17 @@ class UserViewSet(UserViewSet):
         return self.retrieve(request, *args, **kwargs)
 
     def get_subscriber_user(self, **kwargs):
-        return get_object_or_404(User, pk=kwargs['id'])
+        return get_object_or_404(User, pk=kwargs[ID])
 
     @action(
         ['get'], detail=False,
-        permission_classes=[IsAuthenticated], url_path='subscriptions',
+        permission_classes=[IsAuthenticated], url_path=SUBSCRIPTIONS,
         serializer_class=[SubscribeSerializer],
         filter_backends=[RecipeLimitFiler]
     )
     def subscriptions(self, request, *args, **kwargs):
         all_sub = request.user.users_ubscribers.select_related(
-            'user', 'subscriber'
+            USER, SUBSCRIBER
         )
         page = self.paginate_queryset(all_sub)
         data = [
@@ -102,14 +110,14 @@ class UserViewSet(UserViewSet):
         subscribe_user = self.get_subscriber_user(**kwargs)
         if request.user == subscribe_user:
             return Response(
-                {'error': 'Нельзя подписаться на себя.'},
+                ERROR_SUBSCRIBER_USER_USER,
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj, result = Subscriber.objects.get_or_create(
             user=request.user, subscriber=subscribe_user)
         if not result:
             return Response(
-                {'error': 'Вы уже подписаны на этого пользователя.'},
+                ERROR_SUBSCRIBER_IS_ALREADY,
                 status=status.HTTP_400_BAD_REQUEST
             )
         data = SubscribeSerializer(instance=subscribe_user).data
@@ -124,7 +132,7 @@ class UserViewSet(UserViewSet):
         )
         if not subscribe.exists():
             return Response(
-                {'error': 'Подписка на пользователя не найдена.'},
+                ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -146,7 +154,7 @@ class IngredientsView(ListRetriveMixin):
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
     filter_backends = [RecipeFilter]
-    filterset_fields = ['author', 'tags']
+    filterset_fields = [AUTHOR, TAGS]
     permission_classes = [IsAuthorOrReadOnly]
     pagination_class = RecipesPagination
 
@@ -171,7 +179,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request, *args, **kwargs):
         data = {}
         shopping_cart = self.request.user.shopping_cart.prefetch_related(
-            'user', 'recipe'
+            USER, RECIPE
         )
         ingredients_in_recipes = [
             i.recipe.recipe_ingredients.all() for i in shopping_cart
@@ -202,7 +210,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         if not created:
             return Response(
-                {'detail': 'Рецепт уже добавлен.'},
+                ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
         serializer = ShortRecipeSerializer(instance=recipe)
@@ -215,7 +223,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         obj = model.objects.filter(user=request.user, recipe=recipe)
         if not obj.exists():
             return Response(
-                {'detail': 'Рецепт в списке покупок не найден.'},
+                ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj.delete()
