@@ -13,12 +13,13 @@ services:
   backend:
    container_name: foodgram-back
    build: ./backend
-   env_file: ./backend/.env
+   env_file: .env
    volumes:
     - static:/backend_static
     - media:/app/media
 
   frontend:
+    env_file: .env
     container_name: foodgram-front
     build: ./frontend
     volumes:
