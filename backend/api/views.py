@@ -23,7 +23,7 @@ from recipes.models import (
 )
 from users.models import Subscriber
 from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
-from .permissions import IsAuthorOrReadOnly
+from .permissions import IsAuthorOrAdminOrReadOnly
 from django.conf import settings
 from django.shortcuts import redirect
 from utils.pdf_gen import get_pdf
@@ -155,7 +155,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
     filter_backends = [RecipeFilter]
     filterset_fields = [AUTHOR, TAGS]
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = [IsAuthorOrAdminOrReadOnly]
     pagination_class = RecipesPagination
 
     def get_serializer_class(self):
