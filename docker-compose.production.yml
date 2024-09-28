@@ -25,7 +25,7 @@ services:
     container_name: foodgram-front
     image: sainekt/foodgram_frontend
     volumes:
-      - ./frontend/:/app/result_build/
+      - static:/static
   nginx:
     depends_on:
       - backend
