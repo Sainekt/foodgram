@@ -23,7 +23,7 @@ services:
     container_name: foodgram-front
     build: ./frontend
     volumes:
-      - static:/static
+      - ./frontend/:/app/result_build/
   nginx:
     depends_on:
       - db
@@ -36,5 +36,6 @@ services:
     ports:
       - "80:80"
     volumes:
+    
       - media:/media
       - static:/static
