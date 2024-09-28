@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from common.constants import MAX_32, MAX_128, MAX_64, MAX_256
+from common.constants import MAX_32, MAX_64, MAX_128, MAX_256
 
 User = get_user_model()
 

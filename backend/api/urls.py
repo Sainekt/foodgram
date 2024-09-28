@@ -1,12 +1,9 @@
 from django.conf import settings
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter, SimpleRouter
-from .views import (
-    UserViewSet,
-    TagsView,
-    IngredientsView,
-    RecipeViewSet,
-)
+
+from .views import IngredientsView, RecipeViewSet, TagsView, UserViewSet
+
 app_name = 'api_v1'
 
 Router = DefaultRouter if settings.DEBUG else SimpleRouter

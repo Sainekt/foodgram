@@ -1,10 +1,9 @@
+from django.conf import settings
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.units import mm
-from django.conf import settings
-
+from reportlab.pdfgen import canvas
 
 fonts_path = settings.BASE_DIR / 'static' / 'fonts'
 file_path = settings.BASE_DIR / 'static' / 'pdf_gen'
