@@ -1,7 +1,7 @@
 from rest_framework import filters
-from common.constants import (
-    TAGS, AUTHOR, NAME, IS_FAVORITED, IS_IN_SHOPPING_CART, RECIPES
-)
+
+from common.constants import (AUTHOR, IS_FAVORITED, IS_IN_SHOPPING_CART, NAME,
+                              RECIPES, TAGS)
 
 
 class IngredientSearchFilter(filters.BaseFilterBackend):

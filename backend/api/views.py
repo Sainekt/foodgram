@@ -1,44 +1,35 @@
+import os
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets, views
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from djoser.views import UserViewSet
+from rest_framework import status, views, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
-from .serializers import (
-    UserAvatarUpdateSerializer,
-    TagsSerializer,
-    IngredientsSerializer,
-    RecipesReadSerializer,
-    RecipesWriteSerializer,
-    ShortRecipeSerializer,
-    SubscribeSerializer
-)
-from djoser.views import UserViewSet
-from rest_framework.decorators import action
-from recipes.models import (
-    Tag,
-    Ingredient,
-    Recipe,
-    ShoppingCart,
-    FavoriteRecipes,
-)
+
+from common.constants import (AUTHOR, AVATAR,
+                              ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
+                              ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
+                              ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
+                              ERROR_SUBSCRIBER_IS_ALREADY,
+                              ERROR_SUBSCRIBER_USER_USER, ID, RECIPE,
+                              SUBSCRIBER, SUBSCRIPTIONS, TAGS, USER)
+from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
+                            Tag)
 from users.models import Subscriber
-from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
-from .permissions import IsAuthorOrAdminOrReadOnly
-from django.conf import settings
-from django.shortcuts import redirect
 from utils.pdf_gen import get_pdf
-from django.http import HttpResponse
-import os
+
+from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination
-from common.constants import (
-    ID, USER, SUBSCRIBER, AVATAR, SUBSCRIPTIONS,
-    ERROR_SUBSCRIBER_USER_USER, ERROR_SUBSCRIBER_IS_ALREADY,
-    ERROR_SUBSCRIBER_DOES_NOT_EXISTS, AUTHOR, TAGS, RECIPE,
-    ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
-    ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS
-
-)
+from .permissions import IsAuthorOrAdminOrReadOnly
+from .serializers import (IngredientsSerializer, RecipesReadSerializer,
+                          RecipesWriteSerializer, ShortRecipeSerializer,
+                          SubscribeSerializer, TagsSerializer,
+                          UserAvatarUpdateSerializer)
 
 User = get_user_model()
 
@@ -166,10 +157,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(['get'], detail=True, url_path='get-link',)
     def get_link(self, request, *args, **kwargs):
         recipe = self.get_recipe(kwargs)
-        short_link = (
-            f'{request.scheme}://' + request.META['HTTP_HOST']
-            + f'/s/{recipe.short_link}'
-        )
+        short_link = request.build_absolute_uri(f'/s/{recipe.short_link}')
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
 
     @action(

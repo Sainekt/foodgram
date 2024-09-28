@@ -11,16 +11,19 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
   backend:
-   container_name: foodgram-back
-   build: ./backend
-   env_file: ./backend/.env
-   volumes:
-    - static:/backend_static
-    - media:/app/media
+    depends_on:
+    - db
+    container_name: foodgram-back
+    image: sainekt/foodgram_backend
+    env_file: .env
+    volumes:
+      - static:/backend_static
+      - media:/app/media
 
   frontend:
+    env_file: .env
     container_name: foodgram-front
-    build: ./frontend
+    image: sainekt/foodgram_frontend
     volumes:
       - ./frontend/:/app/result_build/
   nginx:
@@ -28,12 +31,10 @@ services:
       - backend
       - frontend
     container_name: foodgram-proxy
-    image: nginx:1.25.4-alpine
+    image: sainekt/foodgram_gateway
     ports:
-      - "80:80"
+      - "8000:80"
     volumes:
-      - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./frontend/build:/usr/share/nginx/html/
-      - ./docs/:/usr/share/nginx/html/api/docs/
       - media:/media
       - static:/static

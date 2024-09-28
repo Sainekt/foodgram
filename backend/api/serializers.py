@@ -1,24 +1,21 @@
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from drf_extra_fields.fields import Base64ImageField
-from djoser.serializers import UserSerializer
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from djoser.serializers import UserSerializer
+from drf_extra_fields.fields import Base64ImageField
+from rest_framework import serializers
 
-from recipes.models import (
-    Tag, Ingredient, Recipe, IngredientsRecipes
-)
+from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
+                              ERROR_DOES_NOT_EXISTS_INGRIDIENT,
+                              ERROR_DUBLE_INGREDIENT, ERROR_DUBLE_TAG,
+                              ERROR_INGREDIENTS, ERROR_NONE_TAG,
+                              ERROR_REQUIRED_FIELD, ERROR_TAGS, ID, IMAGE,
+                              INGREDIENT, INGREDIENTS, IS_FAVORITED,
+                              IS_IN_SHOPPING_CART, MEASUREMENT_UNIT, NAME,
+                              REQUEST, SHORT_LINK, SLUG, TAGS, TEXT)
+from recipes.models import Ingredient, IngredientsRecipes, Recipe, Tag
 from utils.short_link_gen import get_link
-from common.constants import (
-    ID, TAGS, AUTHOR, INGREDIENTS, SLUG,
-    IS_FAVORITED, IS_IN_SHOPPING_CART, NAME, IMAGE, TEXT,
-    COOKING_TIME, SHORT_LINK, ERROR_INGREDIENTS, ERROR_TAGS,
-    ERROR_REQUIRED_FIELD, ERROR_DUBLE_TAG, ERROR_NONE_TAG,
-    ERROR_DUBLE_INGREDIENT, ERROR_DOES_NOT_EXISTS_INGRIDIENT, REQUEST,
-    INGREDIENT, AMOUNT, MEASUREMENT_UNIT
-)
 
 from .mixins import GetUserMixin
-
 
 User = get_user_model()
 

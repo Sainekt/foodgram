@@ -1,16 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 
-
-from .models import (
-    Tag,
-    Ingredient,
-    IngredientsRecipes,
-    Recipe,
-    TagsRecipes,
-    FavoriteRecipes,
-    ShoppingCart,
-)
+from .models import (FavoriteRecipes, Ingredient, IngredientsRecipes, Recipe,
+                     ShoppingCart, Tag, TagsRecipes)
 
 admin.site.empty_value_display = 'Не задано'
 
