@@ -22,8 +22,9 @@ services:
   frontend:
     container_name: foodgram-front
     build: ../frontend
+    command: cp -r /app/build/. /static/
     volumes:
-      - ../frontend/:/app/result_build/
+      - static:/static
   nginx:
     depends_on:
       - db
