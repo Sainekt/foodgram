@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG') != 'False'
+DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(', ')
 
@@ -24,7 +24,7 @@ DOMAIN = os.getenv('DOMAIN')
 PROTOCOL = ('http://' if DEBUG else 'https://')
 UBSOLUTE_DOMAIN = PROTOCOL + DOMAIN
 
-if not all((SECRET_KEY, DEBUG, ALLOWED_HOSTS, DOMAIN)):
+if not all((SECRET_KEY, ALLOWED_HOSTS, DOMAIN)):
     raise ValueError('Убедитесь, что в .env заполнены все переменные')
 
 # Application definition
