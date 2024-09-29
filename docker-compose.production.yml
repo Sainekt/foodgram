@@ -16,7 +16,7 @@ services:
     env_file: .env
     volumes:
       - static:/backend_static/
-      - media:/media/
+      - media:/app/media/
   frontend:
     env_file: .env
     image: sainekt/foodgram_frontend

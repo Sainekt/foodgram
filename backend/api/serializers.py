@@ -269,5 +269,5 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         if obj.image:
-            return f'{settings.UBSOLUTE_DOMAIN}/{str(obj.image)}'
+            return f'{settings.UBSOLUTE_DOMAIN}/media/{str(obj.image)}'
         return None
