@@ -5,8 +5,8 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-fonts_path = settings.BASE_DIR / 'static' / 'fonts'
-file_path = settings.BASE_DIR / 'static' / 'pdf_gen'
+fonts_path = settings.BASE_DIR / 'utils' / 'fonts'
+file_path = settings.BASE_DIR / 'utils' / 'pdf_gen'
 
 pdfmetrics.registerFont(TTFont('regular', fonts_path / 'Kanit-Cyrillic.ttf'))
 
