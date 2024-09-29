@@ -27,7 +27,7 @@ services:
     depends_on:
       - frontend
       - backend
-    image: sainekt/foodgram_dateway
+    image: sainekt/foodgram_gateway
     env_file: .env
     volumes:
       - static:/static/
