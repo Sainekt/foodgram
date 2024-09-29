@@ -14,7 +14,6 @@ from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               REQUEST, SHORT_LINK, SLUG, TAGS, TEXT)
 from recipes.models import Ingredient, IngredientsRecipes, Recipe, Tag
 from users.models import Subscriber
-
 from utils.short_link_gen import get_link
 
 from .mixins import GetUserMixin
