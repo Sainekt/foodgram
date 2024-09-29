@@ -27,7 +27,7 @@ UBSOLUTE_DOMAIN = PROTOCOL + DOMAIN
 if not all((SECRET_KEY, ALLOWED_HOSTS, DOMAIN)):
     raise ValueError('Убедитесь, что в .env заполнены все переменные')
 
-CSRF_TRUSTED_ORIGINS = ['https://foodgram-sainekt.sytes.net']
+CSRF_TRUSTED_ORIGINS = [PROTOCOL + DOMAIN]
 
 # Application definition
 
