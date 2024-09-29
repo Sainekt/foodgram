@@ -24,13 +24,13 @@ services:
     volumes:
       - static:/frontend_static
   gateway:
-    image: sainekt/foodgram_gateway
-    env_file: .env
-    volumes:
-      - static:/staticfiles/
-      - media:/media/
-    ports:
-      - 8000:80
     depends_on:
       - frontend
       - backend
+    build: ./gateway/
+    env_file: .env
+    volumes:
+      - static:/static/
+      - media:/media/
+    ports:
+      - 8000:80
