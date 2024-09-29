@@ -30,7 +30,7 @@ services:
     image: sainekt/foodgram_gateway
     env_file: .env
     volumes:
-      - static:/static/
+      - static:/staticfiles/
       - media:/media/
     ports:
       - 8000:80
