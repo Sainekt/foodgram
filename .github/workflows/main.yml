@@ -36,9 +36,9 @@ jobs:
         DB_PORT: ${{ secrets.TEST_DB_PORT }}
       run: |
         python -m flake8 backend/
-  build_and_push_to_docker_hub:
+  build_backend_and_push_to_docker_hub:
     if: ${{ github.ref == 'refs/heads/main' }}
-    name: Push Docker image to DockerHub
+    name: Push backend Docker image to DockerHub
     runs-on: ubuntu-latest
     needs: tests
     steps:
@@ -101,7 +101,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: 
-      - build_and_push_to_docker_hub
+      - build_backend_and_push_to_docker_hub
       - build_frontend_and_push_to_docker_hub
       - build_gateway_and_push_to_docker_hub
     steps:
