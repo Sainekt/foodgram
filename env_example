@@ -1,0 +1,10 @@
+DOMAIN=<str>
+DEBUG=<str>
+SECRET_KEY=<str>
+ALLOWED_HOSTS=<str>, <str>, <str>
+POSTGRES_DB=<str>
+POSTGRES_USER=<str>
+POSTGRES_PASSWORD=<str>
+DB_NAME=<str>
+DB_HOST=<str>
+DB_PORT=<int>
