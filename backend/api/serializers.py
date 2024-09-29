@@ -13,6 +13,8 @@ from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               IS_IN_SHOPPING_CART, MEASUREMENT_UNIT, NAME,
                               REQUEST, SHORT_LINK, SLUG, TAGS, TEXT)
 from recipes.models import Ingredient, IngredientsRecipes, Recipe, Tag
+from users.models import Subscriber
+
 from utils.short_link_gen import get_link
 
 from .mixins import GetUserMixin
@@ -46,7 +48,7 @@ class UserSerializer(GetUserMixin, UserSerializer):
     def get_is_subscribed(self, obj):
         if not (user := self.get_user_object()):
             return False
-        return user.subscribers.all().exists()
+        return Subscriber.objects.filter(user=user, subscriber=obj).exists()
 
 
 class SubscribeSerializer(UserSerializer):
