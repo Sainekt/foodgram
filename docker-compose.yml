@@ -22,13 +22,13 @@ services:
     volumes:
       - static:/frontend_static
   gateway:
-    build: ./infra/
+    build: ./gateway/
     env_file: .env
     volumes:
-      - static:/staticfiles/
+      - static:/static/
       - media:/media/
     ports:
-      - 8000:80
+      - 80:80
     depends_on:
       - frontend
       - backend
