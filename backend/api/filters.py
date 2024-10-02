@@ -1,24 +1,29 @@
-from rest_framework import filters
+# from rest_framework import filters
+from django_filters import rest_framework as filters
+from recipes.models import Ingredient
 
 from common.constants import (AUTHOR, IS_FAVORITED, IS_IN_SHOPPING_CART, NAME,
                               RECIPES, TAGS)
 
 
-class IngredientSearchFilter(filters.SearchFilter):
-    search_param = NAME
+class IngredientSearchFilter(filters.FilterSet):
+    name = filters.CharFilter(field_name='name', method='filter_name')
 
-    def filter_queryset(self, request, queryset, view):
-        char = super().get_search_terms(request)
-        if not char:
+    class Meta:
+        model = Ingredient
+        fields = ['name']
+
+    def filter_name(self, queryset, name, value):
+        if not value:
             return queryset
-        char = ' '.join(char).lower()
-        if clean_queryset := queryset.filter(
-                name__istartswith=char).distinct():
-            return clean_queryset
-        return queryset.filter(name__icontains=char).distinct()
+        queryset = queryset.filter(name__istartswith=value)
+        if not queryset.exists():
+            queryset = self.queryset.filter(name__icontains=value)
+        return queryset
 
 
-class RecipeFilter(filters.SearchFilter):
+class RecipeFilter(filters.FilterSet):
+    ...
     search_param = TAGS
     def get_search_terms(self, request):
         return request.query_params.getlist(TAGS)
@@ -49,7 +54,8 @@ class RecipeFilter(filters.SearchFilter):
         return queryset
 
 
-class RecipeLimitFiler(filters.BaseFilterBackend):
+class RecipeLimitFiler(filters.FilterSet):
+    ...
 
     def filter_queryset(self, request, data: dict, view):
         recipes_limit = request.query_params.get('recipes_limit')

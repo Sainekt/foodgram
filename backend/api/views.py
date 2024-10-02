@@ -5,7 +5,8 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from djoser.views import UserViewSet
-from rest_framework import status, views, viewsets, filters
+from rest_framework import status, views, viewsets
+from django_filters import rest_framework as filters
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
@@ -140,7 +141,8 @@ class TagsView(ListRetriveMixin):
 class IngredientsView(ListRetriveMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
-    filter_backends = [IngredientSearchFilter]
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = IngredientSearchFilter
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
