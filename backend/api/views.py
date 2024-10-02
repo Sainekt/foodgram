@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from djoser.views import UserViewSet
-from rest_framework import status, views, viewsets
+from rest_framework import status, views, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
@@ -16,7 +16,8 @@ from common.constants import (AUTHOR, AVATAR,
                               ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_IS_ALREADY,
                               ERROR_SUBSCRIBER_USER_USER, ID, RECIPE,
-                              SUBSCRIBER, SUBSCRIPTIONS, TAGS, USER)
+                              SUBSCRIBER, SUBSCRIPTIONS, TAGS, USER,
+                              IS_IN_SHOPPING_CART, IS_FAVORITED)
 from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
                             Tag)
 from users.models import Subscriber
@@ -145,7 +146,7 @@ class IngredientsView(ListRetriveMixin):
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
     filter_backends = [RecipeFilter]
-    filterset_fields = [AUTHOR, TAGS]
+    search_fields = ['=author__id', '=tags__slug']
     permission_classes = [IsAuthorOrAdminOrReadOnly]
     pagination_class = RecipesPagination
 

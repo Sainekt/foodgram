@@ -4,25 +4,28 @@ from common.constants import (AUTHOR, IS_FAVORITED, IS_IN_SHOPPING_CART, NAME,
                               RECIPES, TAGS)
 
 
-class IngredientSearchFilter(filters.BaseFilterBackend):
+class IngredientSearchFilter(filters.SearchFilter):
+    search_param = NAME
 
     def filter_queryset(self, request, queryset, view):
-        name = request.query_params.get(NAME)
-        if not name:
+        char = super().get_search_terms(request)
+        if not char:
             return queryset
-        name = name.lower()
-        queryset_filter = queryset.filter(
-            name__istartswith=name).distinct()
-        if not queryset_filter:
-            queryset_filter = queryset.filter(
-                name__icontains=name
-            ).distinct()
-        return queryset_filter
+        char = ' '.join(char).lower()
+        if clean_queryset := queryset.filter(
+                name__istartswith=char).distinct():
+            return clean_queryset
+        return queryset.filter(name__icontains=char).distinct()
 
 
-class RecipeFilter(filters.BaseFilterBackend):
+class RecipeFilter(filters.SearchFilter):
+    search_param = TAGS
+    def get_search_terms(self, request):
+        return request.query_params.getlist(TAGS)
 
     def filter_queryset(self, request, queryset, view):
+        terms = super().get_search_terms(request=request)
+        print(terms)
         tags = request.query_params.getlist(TAGS)
         author = request.query_params.getlist(AUTHOR)
         is_in_shopping_cart = request.query_params.get(
