@@ -21,11 +21,11 @@ from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
                             Tag)
 from users.models import Subscriber
 from utils.pdf_gen import get_pdf
-
+from rest_condition import Or
 from .filters import IngredienFilterSet, RecipeFilterSet
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination
-from .permissions import IsAuthorOrAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
 from .serializers import (IngredientsSerializer, RecipesReadSerializer,
                           RecipesWriteSerializer, ShortRecipeSerializer,
                           SubscribeSerializer, TagsSerializer,
@@ -144,7 +144,7 @@ class IngredientsView(ListRetriveMixin):
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
     filter_backends = [filters.DjangoFilterBackend]
-    permission_classes = [IsAuthorOrAdminOrReadOnly]
+    permission_classes = [Or(IsAuthorOrReadOnly, IsAdminOrReadOnly)]
     filterset_class = RecipeFilterSet
     pagination_class = RecipesPagination
 
