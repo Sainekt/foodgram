@@ -11,20 +11,18 @@ from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 
-from common.constants import (AUTHOR, AVATAR,
-                              ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
+from common.constants import (AVATAR, ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                               ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_IS_ALREADY,
                               ERROR_SUBSCRIBER_USER_USER, ID, RECIPE,
-                              SUBSCRIBER, SUBSCRIPTIONS, TAGS, USER,
-                              IS_IN_SHOPPING_CART, IS_FAVORITED)
+                              SUBSCRIBER, SUBSCRIPTIONS, USER)
 from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
                             Tag)
 from users.models import Subscriber
 from utils.pdf_gen import get_pdf
 
-from .filters import IngredientSearchFilter, RecipeFilter, RecipeLimitFiler
+from .filters import IngredientSearchFilter, RecipeFilter, recipe_limit
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination
 from .permissions import IsAuthorOrAdminOrReadOnly
@@ -80,7 +78,6 @@ class UserViewSet(UserViewSet):
         ['get'], detail=False,
         permission_classes=[IsAuthenticated], url_path=SUBSCRIPTIONS,
         serializer_class=[SubscribeSerializer],
-        filter_backends=[RecipeLimitFiler]
     )
     def subscriptions(self, request, *args, **kwargs):
         all_sub = request.user.users_ubscribers.select_related(
@@ -90,14 +87,13 @@ class UserViewSet(UserViewSet):
         data = [
             SubscribeSerializer(subscriber_obj.subscriber).data
             for subscriber_obj in page]
-        data = self.filter_queryset(data)
+        data = recipe_limit(request, data)
         return self.get_paginated_response(data)
 
     @action(
         ['post'], detail=True, url_path='subscribe',
         permission_classes=[IsAuthenticated],
         serializer_class=[SubscribeSerializer],
-        filter_backends=[RecipeLimitFiler]
     )
     def subscribe(self, request, *args, **kwargs):
         subscribe_user = self.get_subscriber_user(**kwargs)
@@ -114,8 +110,8 @@ class UserViewSet(UserViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         data = SubscribeSerializer(instance=subscribe_user).data
-        filter_data = self.filter_queryset(data)
-        return Response(filter_data, status=status.HTTP_201_CREATED)
+        data = recipe_limit(request, data)
+        return Response(data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def del_subscribe(self, request, *args, **kwargs):
@@ -147,9 +143,9 @@ class IngredientsView(ListRetriveMixin):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
-    filter_backends = [RecipeFilter]
-    search_fields = ['=author__id', '=tags__slug']
+    filter_backends = [filters.DjangoFilterBackend]
     permission_classes = [IsAuthorOrAdminOrReadOnly]
+    filterset_class = RecipeFilter
     pagination_class = RecipesPagination
 
     def get_serializer_class(self):
