@@ -73,7 +73,11 @@ class SubscribeSerializer(UserSerializer):
         return len(obj.recipes.all())
 
     def get_recipes(self, obj):
-        queryset = obj.recipes.all()
+        limit = self.context['request'].query_params.get('recipes_limit')
+        if limit and limit.isdigit():
+            queryset = obj.recipes.all()[:int(limit)]
+        else:
+            queryset = obj.recipes.all()
         serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
 

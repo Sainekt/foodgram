@@ -22,7 +22,7 @@ from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
 from users.models import Subscriber
 from utils.pdf_gen import get_pdf
 
-from .filters import IngredientSearchFilter, RecipeFilter, recipe_limit
+from .filters import IngredienFilterSet, RecipeFilterSet
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination
 from .permissions import IsAuthorOrAdminOrReadOnly
@@ -85,9 +85,9 @@ class UserViewSet(UserViewSet):
         )
         page = self.paginate_queryset(all_sub)
         data = [
-            SubscribeSerializer(subscriber_obj.subscriber).data
+            SubscribeSerializer(
+                subscriber_obj.subscriber, context={'request': request}).data
             for subscriber_obj in page]
-        data = recipe_limit(request, data)
         return self.get_paginated_response(data)
 
     @action(
@@ -109,8 +109,8 @@ class UserViewSet(UserViewSet):
                 ERROR_SUBSCRIBER_IS_ALREADY,
                 status=status.HTTP_400_BAD_REQUEST
             )
-        data = SubscribeSerializer(instance=subscribe_user).data
-        data = recipe_limit(request, data)
+        data = SubscribeSerializer(
+            instance=subscribe_user, context={'request': request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
@@ -138,14 +138,14 @@ class IngredientsView(ListRetriveMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = IngredientSearchFilter
+    filterset_class = IngredienFilterSet
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.with_related.all()
     filter_backends = [filters.DjangoFilterBackend]
     permission_classes = [IsAuthorOrAdminOrReadOnly]
-    filterset_class = RecipeFilter
+    filterset_class = RecipeFilterSet
     pagination_class = RecipesPagination
 
     def get_serializer_class(self):

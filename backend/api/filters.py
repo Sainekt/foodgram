@@ -1,15 +1,13 @@
 from django_filters import rest_framework as filters
 from recipes.models import Ingredient, Recipe
 
-from common.constants import (NAME, RECIPES)
 
-
-class IngredientSearchFilter(filters.FilterSet):
+class IngredienFilterSet(filters.FilterSet):
     name = filters.CharFilter(field_name='name', method='filter_name')
 
     class Meta:
         model = Ingredient
-        fields = [NAME]
+        fields = ['name']
 
     def filter_name(self, queryset, name, value):
         value = value.lower()
@@ -18,7 +16,7 @@ class IngredientSearchFilter(filters.FilterSet):
         return self.queryset.filter(name__icontains=value)
 
 
-class RecipeFilter(filters.FilterSet):
+class RecipeFilterSet(filters.FilterSet):
     author = filters.NumberFilter(field_name='author_id')
     tags = filters.AllValuesMultipleFilter(field_name='tags__slug')
     is_in_shopping_cart = filters.BooleanFilter(
@@ -42,17 +40,3 @@ class RecipeFilter(filters.FilterSet):
             return queryset
         return queryset.filter(
             favorite_recipes__user=self.request.user).distinct()
-
-
-def recipe_limit(request, data: dict):
-    limit = request.query_params.get('recipes_limit')
-    if not limit or not limit.isdigit():
-        return data
-    limit = int(limit)
-    if type(data) is list:
-        for i in range(len(data)):
-            data[i][RECIPES] = data[i][RECIPES][:limit]
-    else:
-        data[RECIPES] = data[RECIPES][:limit]
-
-    return data
