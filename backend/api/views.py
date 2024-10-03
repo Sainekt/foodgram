@@ -10,7 +10,7 @@ from django_filters import rest_framework as filters
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
-
+from django.db.models import Exists, OuterRef
 from common.constants import (AVATAR, ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                               ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
@@ -147,6 +147,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = [Or(IsAuthorOrReadOnly, IsAdminOrReadOnly)]
     filterset_class = RecipeFilterSet
     pagination_class = RecipesPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = super().get_queryset()
+        if not user.is_authenticated:
+            return queryset
+        shopping_cart_exists = Exists(ShoppingCart.objects.filter(
+            user=user, recipe=OuterRef('pk')))
+        favorite_recipes_exists = Exists(FavoriteRecipes.objects.filter(
+            user=user, recipe=OuterRef('pk')))
+        queryset = queryset.annotate(
+            is_in_shopping_cart=shopping_cart_exists,
+            is_favorited=favorite_recipes_exists
+        )
+        return queryset
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:

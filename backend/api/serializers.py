@@ -53,7 +53,7 @@ class UserSerializer(GetUserMixin, UserSerializer):
 class SubscribeSerializer(UserSerializer):
     recipes_count = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
-    is_subscribed = serializers.SerializerMethodField()
+    is_subscribed = serializers.BooleanField(default=True)
 
     class Meta:
         model = User
@@ -80,10 +80,6 @@ class SubscribeSerializer(UserSerializer):
             queryset = obj.recipes.all()
         serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
-
-    def get_is_subscribed(self, obj):
-        # Сериализирует данные только подписчиков, всегда True
-        return True
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -123,8 +119,8 @@ class IngredientsInRecipeCreateSerializer(serializers.ModelSerializer):
 
 
 class RecipesReadSerializer(GetUserMixin, serializers.ModelSerializer):
-    is_in_shopping_cart = serializers.SerializerMethodField()
-    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.BooleanField(default=False)
+    is_favorited = serializers.BooleanField(default=False)
     author = UserSerializer(many=False, read_only=True)
     ingredients = serializers.SerializerMethodField()
     tags = TagsSerializer(many=True)
@@ -135,14 +131,6 @@ class RecipesReadSerializer(GetUserMixin, serializers.ModelSerializer):
             ID, TAGS, AUTHOR, INGREDIENTS, IS_FAVORITED,
             IS_IN_SHOPPING_CART, NAME, IMAGE, TEXT, COOKING_TIME
         )
-
-    def get_is_in_shopping_cart(self, obj):
-        user = self.get_user_object()
-        return obj.shopping_cart.filter(user=user).exists()
-
-    def get_is_favorited(self, obj):
-        user = self.get_user_object()
-        return obj.favorite_recipes.filter(user=user).exists()
 
     def get_ingredients(self, obj):
         ingredient_in_recipe = obj.recipe_ingredients.all()
