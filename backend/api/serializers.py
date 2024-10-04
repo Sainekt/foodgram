@@ -174,13 +174,9 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 ERROR_NONE_TAG
             )
-        check_unique = set()
-        for data in value:
-            if data in check_unique:
-                raise serializers.ValidationError(
-                    ERROR_DUBLE_TAG
-                )
-            check_unique.add(data)
+        tags_set = {i for i in value}
+        if len(tags_set) != len(value):
+            raise serializers.ValidationError(ERROR_DUBLE_TAG)
         return value
 
     def validate_image(self, value):
