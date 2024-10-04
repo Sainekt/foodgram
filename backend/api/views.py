@@ -2,7 +2,7 @@ import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from djoser.views import UserViewSet
 from rest_framework import status, views, viewsets
@@ -15,12 +15,11 @@ from common.constants import (AVATAR, ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                               ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_IS_ALREADY,
-                              ERROR_SUBSCRIBER_USER_USER, ID, RECIPE,
+                              ERROR_SUBSCRIBER_USER_USER, ID,
                               SUBSCRIBER, SUBSCRIPTIONS, USER)
 from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
                             Tag)
 from users.models import Subscriber
-from utils.pdf_gen import get_pdf
 from rest_condition import Or
 from .filters import IngredienFilterSet, RecipeFilterSet
 from .mixins import ListRetriveMixin
@@ -30,6 +29,7 @@ from .serializers import (IngredientsSerializer, RecipesReadSerializer,
                           RecipesWriteSerializer, ShortRecipeSerializer,
                           SubscribeSerializer, TagsSerializer,
                           UserAvatarUpdateSerializer)
+from .shopping_cart import get_shopping_list
 
 User = get_user_model()
 
@@ -168,27 +168,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def download_shopping_cart(self, request, *args, **kwargs):
-        data = {}
-        shopping_cart = self.request.user.shopping_cart.prefetch_related(
-            USER, RECIPE
-        )
-        ingredients_in_recipes = [
-            i.recipe.recipe_ingredients.all() for i in shopping_cart
-        ]
-        for ingredients in ingredients_in_recipes:
-            for ingredient in ingredients:
-                if ingredient.ingredient not in data:
-                    data[ingredient.ingredient] = 0
-                data[ingredient.ingredient] += ingredient.amount
-
-        pdf_filename = get_pdf(data)
-        with open(pdf_filename, 'rb') as file:
-            response = HttpResponse(
-                file.read(), content_type='application/pdf'
-            )
-            response[
-                'Content-Disposition'] = 'inline; filename="shopping_cart.pdf"'
-        os.remove(pdf_filename)
+        file = get_shopping_list(request.user)
+        response = FileResponse(open(file, 'rb'))
+        os.remove(file)
         return response
 
     def get_recipe(self, kwargs):
