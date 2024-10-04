@@ -1,11 +1,9 @@
-from rest_framework import mixins, viewsets
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from common.constants import REQUEST
 
 
-class ListRetriveMixin(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
-):
+class ListRetriveMixin(ReadOnlyModelViewSet):
     pagination_class = None
 
 

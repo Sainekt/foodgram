@@ -1,6 +1,5 @@
 version: '3.3'
 volumes:
-  pg_data:
   static:
   media:
 
@@ -9,6 +8,7 @@ services:
   backend:
    container_name: foodgram-back
    build: ../backend
+   env_file: ../.env
    volumes:
     - static:/backend_static
     - media:/app/media

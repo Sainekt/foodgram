@@ -32,7 +32,7 @@ def write_pdf(pdf, data):
 
 
 def get_pdf(data):
-    pdf = canvas.Canvas(filename='ShopingCatrt.pdf', pagesize=A4)
+    pdf = canvas.Canvas(filename='ShoppingCatrt.pdf', pagesize=A4)
     pdf.drawInlineImage(f'{file_path}/Logo.png', 100 * mm, 0)
     pdf.drawInlineImage(f'{file_path}/favicon.png', 0, 260 * mm)
     pdf.setFont('regular', 20)

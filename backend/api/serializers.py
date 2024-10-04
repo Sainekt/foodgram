@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
@@ -53,7 +54,7 @@ class UserSerializer(GetUserMixin, UserSerializer):
 class SubscribeSerializer(UserSerializer):
     recipes_count = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
-    is_subscribed = serializers.SerializerMethodField()
+    is_subscribed = serializers.BooleanField(default=True)
 
     class Meta:
         model = User
@@ -73,13 +74,13 @@ class SubscribeSerializer(UserSerializer):
         return len(obj.recipes.all())
 
     def get_recipes(self, obj):
-        queryset = obj.recipes.all()
+        limit = self.context['request'].query_params.get('recipes_limit')
+        if limit and limit.isdigit():
+            queryset = obj.recipes.all()[:int(limit)]
+        else:
+            queryset = obj.recipes.all()
         serializer = ShortRecipeSerializer(instance=queryset, many=True)
         return serializer.data
-
-    def get_is_subscribed(self, obj):
-        # Сериализирует данные только подписчиков, всегда True
-        return True
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -119,8 +120,8 @@ class IngredientsInRecipeCreateSerializer(serializers.ModelSerializer):
 
 
 class RecipesReadSerializer(GetUserMixin, serializers.ModelSerializer):
-    is_in_shopping_cart = serializers.SerializerMethodField()
-    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.BooleanField(default=False)
+    is_favorited = serializers.BooleanField(default=False)
     author = UserSerializer(many=False, read_only=True)
     ingredients = serializers.SerializerMethodField()
     tags = TagsSerializer(many=True)
@@ -131,14 +132,6 @@ class RecipesReadSerializer(GetUserMixin, serializers.ModelSerializer):
             ID, TAGS, AUTHOR, INGREDIENTS, IS_FAVORITED,
             IS_IN_SHOPPING_CART, NAME, IMAGE, TEXT, COOKING_TIME
         )
-
-    def get_is_in_shopping_cart(self, obj):
-        user = self.get_user_object()
-        return obj.shopping_cart.filter(user=user).exists()
-
-    def get_is_favorited(self, obj):
-        user = self.get_user_object()
-        return obj.favorite_recipes.filter(user=user).exists()
 
     def get_ingredients(self, obj):
         ingredient_in_recipe = obj.recipe_ingredients.all()
@@ -228,8 +221,9 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         validated_data[SHORT_LINK] = get_link()
         ingredients = validated_data.pop(INGREDIENTS)
         tags = validated_data.pop(TAGS)
-        recipe = Recipe.objects.create(**validated_data)
-        self.create_update_ingredients_tags(recipe, tags, ingredients)
+        with transaction.atomic():
+            recipe = Recipe.objects.create(**validated_data)
+            self.create_update_ingredients_tags(recipe, tags, ingredients)
         return recipe
 
     def update(self, instance, validated_data):
@@ -245,9 +239,10 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get(NAME)
         instance.text = validated_data.get(TEXT)
         instance.cooking_time = validated_data.get(COOKING_TIME)
-        instance.save()
-        instance.recipe_ingredients.all().delete()
-        self.create_update_ingredients_tags(instance, tags, ingredients)
+        with transaction.atomic():
+            instance.save()
+            instance.recipe_ingredients.all().delete()
+            self.create_update_ingredients_tags(instance, tags, ingredients)
         return instance
 
     def to_representation(self, instance):
