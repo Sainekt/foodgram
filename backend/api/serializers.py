@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from django.db import transaction
 
 from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               ERROR_DOES_NOT_EXISTS_INGRIDIENT,
@@ -220,8 +221,9 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         validated_data[SHORT_LINK] = get_link()
         ingredients = validated_data.pop(INGREDIENTS)
         tags = validated_data.pop(TAGS)
-        recipe = Recipe.objects.create(**validated_data)
-        self.create_update_ingredients_tags(recipe, tags, ingredients)
+        with transaction.atomic():
+            recipe = Recipe.objects.create(**validated_data)
+            self.create_update_ingredients_tags(recipe, tags, ingredients)
         return recipe
 
     def update(self, instance, validated_data):
@@ -237,9 +239,10 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get(NAME)
         instance.text = validated_data.get(TEXT)
         instance.cooking_time = validated_data.get(COOKING_TIME)
-        instance.save()
-        instance.recipe_ingredients.all().delete()
-        self.create_update_ingredients_tags(instance, tags, ingredients)
+        with transaction.atomic():
+            instance.save()
+            instance.recipe_ingredients.all().delete()
+            self.create_update_ingredients_tags(instance, tags, ingredients)
         return instance
 
     def to_representation(self, instance):
