@@ -6,7 +6,6 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
 from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
-                              ERROR_DOES_NOT_EXISTS_INGRIDIENT,
                               ERROR_DUBLE_INGREDIENT, ERROR_DUBLE_TAG,
                               ERROR_INGREDIENTS, ERROR_NONE_TAG,
                               ERROR_REQUIRED_FIELD, ERROR_TAGS, ID, IMAGE,
@@ -112,7 +111,9 @@ class IngredientsInRecipeSerializer(serializers.ModelSerializer):
 
 
 class IngredientsInRecipeCreateSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
+    id = serializers.PrimaryKeyRelatedField(
+        queryset=Ingredient.objects.all()
+    )
 
     class Meta:
         model = IngredientsRecipes
@@ -163,41 +164,19 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 ERROR_INGREDIENTS
             )
-        check_unique = set()
-        queryset = Ingredient.objects.all()
-        validate_ingredients = []
-        for data in value:
-            if not (ingredient := queryset.filter(pk=data[ID])):
-                raise serializers.ValidationError(
-                    ERROR_DOES_NOT_EXISTS_INGRIDIENT
-                )
-            if data[ID] in check_unique:
-                raise serializers.ValidationError(
-                    ERROR_DUBLE_INGREDIENT
-                )
-            check_unique.add(data[ID])
-            validate_ingredients.append(
-                {
-                    # queryset всегда с 1 элементом.
-                    INGREDIENT: ingredient[0],
-                    AMOUNT: data[AMOUNT]
-                }
-            )
-
-        return validate_ingredients
+        ingredient_set = {i[ID] for i in value}
+        if len(ingredient_set) != len(value):
+            raise serializers.ValidationError(ERROR_DUBLE_INGREDIENT)
+        return value
 
     def validate_tags(self, value):
         if not value:
             raise serializers.ValidationError(
                 ERROR_NONE_TAG
             )
-        check_unique = set()
-        for data in value:
-            if data in check_unique:
-                raise serializers.ValidationError(
-                    ERROR_DUBLE_TAG
-                )
-            check_unique.add(data)
+        tags_set = {i for i in value}
+        if len(tags_set) != len(value):
+            raise serializers.ValidationError(ERROR_DUBLE_TAG)
         return value
 
     def validate_image(self, value):
@@ -210,7 +189,7 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
     def create_update_ingredients_tags(self, recipe, tags, ingredients):
         recipe.tags.set(tags)
         ingredient_recipe = [IngredientsRecipes(
-            ingredient=data[INGREDIENT],
+            ingredient=data[ID],
             recipe=recipe, amount=data[AMOUNT])
             for data in ingredients
         ]
