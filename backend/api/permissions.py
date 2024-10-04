@@ -1,7 +1,7 @@
 from rest_framework.permissions import OR, SAFE_METHODS, BasePermission
 
 
-class IsAutentificateOrReadOnlyPermissions(BasePermission):
+class UserOrReadOnlyBasePermissions(BasePermission):
     def has_permission(self, request, view):
         return (
             request.method in SAFE_METHODS
@@ -11,32 +11,27 @@ class IsAutentificateOrReadOnlyPermissions(BasePermission):
     def has_object_permission(self, request, view, obj):
         return (
             request.method in SAFE_METHODS
-            or request.user.is_authenticated
+            or (request.user.is_authenticated and self.get_user_permissions(
+                request, view, obj))
         )
 
-
-class IsAuthorOrReadOnly(IsAutentificateOrReadOnlyPermissions):
-    def has_object_permission(self, request, view, obj):
-        return (
-            request.method in SAFE_METHODS
-            or (request.user.is_authenticated and request.user == obj.author)
-        )
+    def get_user_permissions(self, request, view, obj):
+        return False
 
 
-class IsAdminOrReadOnly(IsAutentificateOrReadOnlyPermissions):
-    def has_object_permission(self, request, view, obj):
-        return (
-            request.method in SAFE_METHODS
-            or (request.user.is_authenticated and request.user.is_staff)
-        )
+class IsAuthorOrReadOnly(UserOrReadOnlyBasePermissions):
+    def get_user_permissions(self, request, view, obj):
+        return request.user == obj.author
 
 
-class IsUserOrReadOnly(IsAutentificateOrReadOnlyPermissions):
-    def has_object_permission(self, request, view, obj):
-        return (
-            request.method in SAFE_METHODS
-            or (request.user.is_authenticated and request.user == obj)
-        )
+class IsAdminOrReadOnly(UserOrReadOnlyBasePermissions):
+    def get_user_permissions(self, request, view, obj):
+        return request.user.is_staff
+
+
+class IsUserOrReadOnly(UserOrReadOnlyBasePermissions):
+    def get_user_permissions(self, request, view, obj):
+        return request.user == obj
 
 
 class IsAdminOrCurrentUserOrReadOnly(BasePermission):

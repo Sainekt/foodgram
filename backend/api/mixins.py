@@ -1,9 +1,9 @@
-from rest_framework import viewsets
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from common.constants import REQUEST
 
 
-class ListRetriveMixin(viewsets.ReadOnlyModelViewSet):
+class ListRetriveMixin(ReadOnlyModelViewSet):
     pagination_class = None
 
 
