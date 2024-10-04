@@ -35,15 +35,6 @@ User = get_user_model()
 
 
 class UserViewSet(UserViewSet):
-
-    def delete_avatar_and_file(self, request):
-        try:
-            os.remove(f'{settings.BASE_DIR}/{settings.MEDIA_URL}'
-                      f'{request.user.avatar}')
-        except FileNotFoundError:
-            pass
-        request.user.avatar.delete()
-
     @action(
         ['put'], detail=False, url_path='me/avatar',
         permission_classes=[IsAuthenticated]
@@ -52,8 +43,6 @@ class UserViewSet(UserViewSet):
         serializer = UserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         avatar_data = serializer.validated_data.get(AVATAR)
-        if request.user.avatar:
-            self.delete_avatar_and_file(request)
         request.user.avatar = avatar_data
         request.user.save()
         image_url = request.build_absolute_uri(
@@ -63,7 +52,7 @@ class UserViewSet(UserViewSet):
 
     @change_avatar.mapping.delete
     def delete_avatar(self, request, *args, **kwargs):
-        self.delete_avatar_and_file(request)
+        request.user.avatar.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(['get'], detail=False, permission_classes=[IsAuthenticated])
