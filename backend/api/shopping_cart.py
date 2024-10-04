@@ -1,5 +1,5 @@
+from common.constants import RECIPE, USER
 from utils.pdf_gen import get_pdf
-from common.constants import USER, RECIPE
 
 
 def get_shopping_list(user):

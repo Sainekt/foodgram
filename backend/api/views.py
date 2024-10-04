@@ -2,25 +2,27 @@ import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import Exists, OuterRef
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
-from djoser.views import UserViewSet
-from rest_framework import status, views, viewsets
 from django_filters import rest_framework as filters
+from djoser.views import UserViewSet
+from rest_condition import Or
+from rest_framework import status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Exists, OuterRef
+
 from common.constants import (AVATAR, ERROR_RECIPE_FAVORITE_DOES_NOT_EXISTS,
                               ERROR_RECIPE_SHOPPING_CART_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_DOES_NOT_EXISTS,
                               ERROR_SUBSCRIBER_IS_ALREADY,
-                              ERROR_SUBSCRIBER_USER_USER, ID,
-                              SUBSCRIBER, SUBSCRIPTIONS, USER)
+                              ERROR_SUBSCRIBER_USER_USER, ID, SUBSCRIBER,
+                              SUBSCRIPTIONS, USER)
 from recipes.models import (FavoriteRecipes, Ingredient, Recipe, ShoppingCart,
                             Tag)
 from users.models import Subscriber
-from rest_condition import Or
+
 from .filters import IngredienFilterSet, RecipeFilterSet
 from .mixins import ListRetriveMixin
 from .pagination import RecipesPagination

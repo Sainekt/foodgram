@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
-from django.db import transaction
 
 from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               ERROR_DOES_NOT_EXISTS_INGRIDIENT,
