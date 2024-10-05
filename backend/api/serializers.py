@@ -9,7 +9,7 @@ from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               ERROR_DUBLE_INGREDIENT, ERROR_DUBLE_TAG,
                               ERROR_INGREDIENTS, ERROR_NONE_TAG,
                               ERROR_REQUIRED_FIELD, ERROR_TAGS, ID, IMAGE,
-                              INGREDIENT, INGREDIENTS, IS_FAVORITED,
+                              INGREDIENTS, IS_FAVORITED,
                               IS_IN_SHOPPING_CART, MEASUREMENT_UNIT, NAME,
                               REQUEST, SHORT_LINK, SLUG, TAGS, TEXT)
 from recipes.models import Ingredient, IngredientsRecipes, Recipe, Tag
@@ -98,11 +98,11 @@ class IngredientsSerializer(serializers.ModelSerializer):
 
 class IngredientsInRecipeSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
-        read_only=True, source=f'{INGREDIENT}.{ID}'
+        read_only=True, source='ingredient.id'
     )
-    name = serializers.CharField(read_only=True, source=f'{INGREDIENT}.{NAME}')
+    name = serializers.CharField(read_only=True, source='ingredient.name')
     measurement_unit = serializers.CharField(
-        read_only=True, source=f'{INGREDIENT}.{MEASUREMENT_UNIT}'
+        read_only=True, source='ingredient.measurement_unit'
     )
 
     class Meta:
@@ -186,6 +186,7 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             )
         return value
 
+    @transaction.atomic
     def create_update_ingredients_tags(self, recipe, tags, ingredients):
         recipe.tags.set(tags)
         ingredient_recipe = [IngredientsRecipes(
@@ -195,16 +196,17 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
         ]
         IngredientsRecipes.objects.bulk_create(ingredient_recipe)
 
+    @transaction.atomic
     def create(self, validated_data):
         validated_data[AUTHOR] = self.context[REQUEST].user
         validated_data[SHORT_LINK] = get_link()
         ingredients = validated_data.pop(INGREDIENTS)
         tags = validated_data.pop(TAGS)
-        with transaction.atomic():
-            recipe = Recipe.objects.create(**validated_data)
-            self.create_update_ingredients_tags(recipe, tags, ingredients)
+        recipe = Recipe.objects.create(**validated_data)
+        self.create_update_ingredients_tags(recipe, tags, ingredients)
         return recipe
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         if not (tags := validated_data.pop(TAGS, None)):
             raise serializers.ValidationError(
@@ -214,14 +216,9 @@ class RecipesWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 ERROR_INGREDIENTS
             )
-        instance.image = validated_data.get(IMAGE, instance.image)
-        instance.name = validated_data.get(NAME)
-        instance.text = validated_data.get(TEXT)
-        instance.cooking_time = validated_data.get(COOKING_TIME)
-        with transaction.atomic():
-            instance.save()
-            instance.recipe_ingredients.all().delete()
-            self.create_update_ingredients_tags(instance, tags, ingredients)
+        super().update(instance, validated_data)
+        instance.recipe_ingredients.all().delete()
+        self.create_update_ingredients_tags(instance, tags, ingredients)
         return instance
 
     def to_representation(self, instance):
