@@ -9,9 +9,9 @@ from common.constants import (AMOUNT, AUTHOR, COOKING_TIME,
                               ERROR_DUBLE_INGREDIENT, ERROR_DUBLE_TAG,
                               ERROR_INGREDIENTS, ERROR_NONE_TAG,
                               ERROR_REQUIRED_FIELD, ERROR_TAGS, ID, IMAGE,
-                              INGREDIENTS, IS_FAVORITED,
-                              IS_IN_SHOPPING_CART, MEASUREMENT_UNIT, NAME,
-                              REQUEST, SHORT_LINK, SLUG, TAGS, TEXT)
+                              INGREDIENTS, IS_FAVORITED, IS_IN_SHOPPING_CART,
+                              MEASUREMENT_UNIT, NAME, REQUEST, SHORT_LINK,
+                              SLUG, TAGS, TEXT)
 from recipes.models import Ingredient, IngredientsRecipes, Recipe, Tag
 from users.models import Subscriber
 from utils.short_link_gen import get_link
